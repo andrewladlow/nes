@@ -15,10 +15,12 @@ void CPU::debug() {
 	// having to trick cout by prepending + to variables, due to use of uint8_t - interpreted as char?
 	//cout << "PC            A        X       Y       SP     Status" << endl;
 	//cout << hex << +pc << "          " << +accumulator << "       " << +regX << "       " << +regY << "       " << +sp << dec << "     " << status << endl;
-	cout << "PC:" << left << setw(4) << hex << +pc << " A:" << setw(2)
-			<< +accumulator << " X:" << setw(2) << +regX << " Y:" << setw(2)
-			<< +regY << " SP:" << setw(2) << +sp << dec << " P:" << status
-			<< " ";
+	cout << "PC:" << left << setw(4) << hex << +pc <<
+			" A:" << setw(2) << +accumulator <<
+			" X:" << setw(2) << +regX <<
+			" Y:" << setw(2) << +regY <<
+			" SP:" << setw(2) << +sp << dec <<
+			" P:" << status << " ";
 }
 
 void CPU::reset() {
@@ -51,14 +53,14 @@ void CPU::loadROM() {
 }
 
 uint16_t CPU::resolveAddress(uint16_t address) {
-	return ((uint16_t) readMemory(address + 1) << 8) + readMemory(address);
+	return ((uint16_t)readMemory(address + 1) << 8) + readMemory(address);
 }
 
 void CPU::storeMemory(uint16_t address, uint8_t value) {
 	if (address >= 0x6000) {
 		sRam[address - 0x6000] = value;
 	} else if (address >= 0x2000) {
-		switch (address & 0x007) {
+		switch(address & 0x007) {
 		case 0:
 			ppu->setControlReg1(value);
 			break;
@@ -147,298 +149,175 @@ void CPU::cycle() {
 	string instrName;
 	int opCount = 0;
 
-	// Select address mode
-	switch (opcode) {
-	// Zero page
-	case 0x65:
-	case 0x25:
-	case 0x06:
-	case 0x24:
-	case 0xC5:
-	case 0xE4:
-	case 0xC4:
-	case 0xC6:
-	case 0x45:
-	case 0xE6:
-	case 0xA5:
-	case 0xA6:
-	case 0x46:
-	case 0x05:
-	case 0x26:
-	case 0x66:
-	case 0xE5:
-	case 0x85:
-	case 0x86:
-	case 0x84:
-		operand = readMemory(pc + 1);
-		pc += 2;
-		opCount = 1;
-		break;
-		// Zero page, X
-	case 0x75:
-	case 0x35:
-	case 0x16:
-	case 0xD5:
-	case 0xD6:
-	case 0x55:
-	case 0xF6:
-	case 0xB5:
-	case 0xB4:
-	case 0x56:
-	case 0x15:
-	case 0x36:
-	case 0x76:
-	case 0xF5:
-	case 0x95:
-	case 0x94:
-		operand = (readMemory(pc + 1) + regX) & 0xFF; // wraparound to remain in zero page
-		pc += 2;
-		opCount = 1;
-		break;
-		// Zero page, Y
-	case 0xB6:
-	case 0x96:
-		operand = (readMemory(pc + 1) + regY) & 0xFF;
-		pc += 2;
-		opCount = 1;
-		break;
-		// Absolute
-	case 0x6D:
-	case 0x2D:
-	case 0x1E:
-	case 0x0E:
-	case 0x2C:
-	case 0xCD:
-	case 0xEC:
-	case 0xCC:
-	case 0xCE:
-	case 0x4D:
-	case 0xEE:
-	case 0x4C:
-	case 0x20:
-	case 0xAD:
-	case 0xAE:
-	case 0xAC:
-	case 0x4E:
-	case 0x0D:
-	case 0x2E:
-	case 0x6E:
-	case 0xED:
-	case 0x8D:
-	case 0x8E:
-	case 0x8C:
-		operand = resolveAddress(pc + 1);
-		pc += 3;
-		opCount = 2;
-		break;
-		// Absolute, X
-	case 0x7D:
-	case 0x3D:
-	case 0xDD:
-	case 0xDE:
-	case 0x5D:
-	case 0xFE:
-	case 0xBD:
-	case 0xBC:
-	case 0x1D:
-	case 0x3E:
-	case 0x7E:
-	case 0xFD:
-	case 0x9D:
-		operand = resolveAddress(pc + 1) + regX;
-		pc += 3;
-		opCount = 2;
-		break;
-		// Absolute, Y
-	case 0x79:
-	case 0x39:
-	case 0xD9:
-	case 0x59:
-	case 0xB9:
-	case 0xBE:
-	case 0x5E:
-	case 0x19:
-	case 0xF9:
-	case 0x99:
-		operand = resolveAddress(pc + 1) + regY;
-		pc += 3;
-		opCount = 2;
-		break;
-		// Indirect (JMP only)
-	case 0x6C: {
-		temp = resolveAddress(pc + 1);
-		// pc set to data in memory address pointed to by operands
-		operand = resolveAddress(temp);
-		opCount = 2;
-		break;
-	}
-		// Implied
-	case 0x18:
-	case 0x38:
-	case 0x58:
-	case 0x78:
-	case 0xB8:
-	case 0xD8:
-	case 0xF8:
-	case 0xAA:
-	case 0x8A:
-	case 0xCA:
-	case 0xE8:
-	case 0xA8:
-	case 0x98:
-	case 0x88:
-	case 0xC8:
-	case 0x9A:
-	case 0xBA:
-	case 0x48:
-	case 0x68:
-	case 0x08:
-	case 0x28:
-		pc++;
-		// no operand
-		opCount = 0;
-		break;
-		// Accumulator
-	case 0x0A:
-	case 0x4A:
-	case 0x2A:
-	case 0x6A:
-		operand = accumulator;
-		pc++;
-		opCount = 0;
-		break;
-		// Immediate
-	case 0x69:
-	case 0x29:
-	case 0xC9:
-	case 0xE0:
-	case 0xC0:
-	case 0x49:
-	case 0xA9:
-	case 0xA2:
-	case 0xA0:
-	case 0x09:
-	case 0xE9:
-		operand = pc + 1;
-		pc += 2;
-		opCount = 1;
-		break;
-		// Relative
-	case 0x10:
-	case 0x30:
-	case 0x50:
-	case 0x70:
-	case 0x90:
-	case 0xB0:
-	case 0xD0:
-	case 0xF0:
-		operand = pc + 1;
-		pc += 2;
-		opCount = 1;
-		break;
-		// Indirect, X (Pre-indexed)
-	case 0x61:
-	case 0x21:
-	case 0xC1:
-	case 0x41:
-	case 0xA1:
-	case 0x01:
-	case 0xE1:
-	case 0x81:
-		temp = readMemory(pc + 1);
-		temp = (temp + regX) & 0xFF;
-		operand = resolveAddress(temp);
+    // Select address mode
+    switch (opcode) {
+    // Zero page
+    case 0x65: case 0x25: case 0x06: case 0x24:
+    case 0xC5: case 0xE4: case 0xC4: case 0xC6:
+    case 0x45: case 0xE6: case 0xA5: case 0xA6:
+    case 0x46: case 0x05: case 0x26: case 0x66:
+    case 0xE5: case 0x85: case 0x86: case 0x84:
+        operand = readMemory(pc + 1);
+        pc += 2;
+        opCount = 1;
+        break;
+    // Zero page, X
+    case 0x75: case 0x35: case 0x16: case 0xD5:
+    case 0xD6: case 0x55: case 0xF6: case 0xB5:
+    case 0xB4: case 0x56: case 0x15: case 0x36:
+    case 0x76: case 0xF5: case 0x95: case 0x94:
+        operand = (readMemory(pc + 1) + regX) & 0xFF; // wraparound to remain in zero page
+        pc += 2;
+        opCount = 1;
+        break;
+    // Zero page, Y
+    case 0xB6: case 0x96:
+        operand = (readMemory(pc + 1) + regY) & 0xFF;
+        pc += 2;
+        opCount = 1;
+        break;
+    // Absolute
+    case 0x6D: case 0x2D: case 0x1E: case 0x0E:
+    case 0x2C: case 0xCD: case 0xEC: case 0xCC:
+    case 0xCE: case 0x4D: case 0xEE: case 0x4C:
+    case 0x20: case 0xAD: case 0xAE: case 0xAC:
+    case 0x4E: case 0x0D: case 0x2E: case 0x6E:
+    case 0xED: case 0x8D: case 0x8E: case 0x8C:
+        operand = resolveAddress(pc + 1);
+        pc += 3;
+        opCount = 2;
+        break;
+    // Absolute, X
+    case 0x7D: case 0x3D: case 0xDD: case 0xDE:
+    case 0x5D: case 0xFE: case 0xBD: case 0xBC:
+    case 0x1D: case 0x3E: case 0x7E: case 0xFD:
+    case 0x9D:
+        operand = resolveAddress(pc + 1) + regX;
+        pc += 3;
+        opCount = 2;
+        break;
+    // Absolute, Y
+    case 0x79: case 0x39: case 0xD9: case 0x59:
+    case 0xB9: case 0xBE: case 0x5E: case 0x19:
+    case 0xF9: case 0x99:
+        operand = resolveAddress(pc + 1) + regY;
+        pc += 3;
+        opCount = 2;
+        break;
+    // Indirect (JMP only)
+    case 0x6C: {
+        temp = resolveAddress(pc + 1);
+        // pc set to data in memory address pointed to by operands
+        operand = resolveAddress(temp);
+        opCount = 2;
+        break;
+    }
+    // Implied
+    case 0x18: case 0x38: case 0x58: case 0x78:
+    case 0xB8: case 0xD8: case 0xF8: case 0xAA:
+    case 0x8A: case 0xCA: case 0xE8: case 0xA8:
+    case 0x98: case 0x88: case 0xC8: case 0x9A:
+    case 0xBA: case 0x48: case 0x68: case 0x08:
+    case 0x28:
+    	pc++;
+        // no operand
+    	opCount = 0;
+        break;
+    // Accumulator
+    case 0x0A: case 0x4A: case 0x2A: case 0x6A:
+        operand = accumulator;
+        pc++;
+    	opCount = 0;
+        break;
+    // Immediate
+    case 0x69: case 0x29: case 0xC9: case 0xE0:
+    case 0xC0: case 0x49: case 0xA9: case 0xA2:
+    case 0xA0: case 0x09: case 0xE9:
+        operand = pc + 1;
+        pc += 2;
+    	opCount = 1;
+        break;
+    // Relative
+    case 0x10: case 0x30: case 0x50: case 0x70:
+    case 0x90: case 0xB0: case 0xD0: case 0xF0:
+        operand = pc + 1;
+        pc += 2;
+    	opCount = 1;
+        break;
+    // Indirect, X (Pre-indexed)
+    case 0x61: case 0x21: case 0xC1: case 0x41:
+    case 0xA1: case 0x01: case 0xE1: case 0x81:
+    	temp = readMemory(pc + 1);
+    	temp = (temp + regX) & 0xFF;
+    	operand = resolveAddress(temp);
 
-		//temp = resolveAddress(pc + 1) + regX;
-		//operand = resolveAddress(temp);
+    	//temp = resolveAddress(pc + 1) + regX;
+    	//operand = resolveAddress(temp);
 
-		//temp = pc + 1 + regX;
-		//operand = readMemory(temp + 1 << 8 | temp);
-		pc += 2;
-		opCount = 1;
-		break;
-		// Indirect, Y (Post-indexed)
-	case 0x71:
-	case 0x31:
-	case 0xD1:
-	case 0x51:
-	case 0xB1:
-	case 0x11:
-	case 0xF1:
-	case 0x91:
-		temp = readMemory(pc + 1);
-		temp = resolveAddress(temp);
-		operand = temp + regY; // no wrap around here as we're adding Y to an address that isn't limited to zero page
+        //temp = pc + 1 + regX;
+        //operand = readMemory(temp + 1 << 8 | temp);
+        pc += 2;
+    	opCount = 1;
+        break;
+    // Indirect, Y (Post-indexed)
+    case 0x71: case 0x31: case 0xD1: case 0x51:
+    case 0xB1: case 0x11: case 0xF1: case 0x91:
+    	temp = readMemory(pc + 1);
+    	temp = resolveAddress(temp);
+    	operand = temp + regY; // no wrap around here as we're adding Y to an address that isn't limited to zero page
 
-		//temp = pc + 1;
-		//operand = memory[memory[(memory[temp + 1] << 8 | memory[temp]) + regY]];
-		//operand = readMemory((temp + 1 << 8 | temp) + regY);
-		pc += 2;
-		opCount = 1;
-		break;
-	default:
-		cout << "Address mode: Unknown opcode: 0x" << hex << opcode
-				<< " at PC: 0x" << +pc << endl;
-		break;
-	}
+        //temp = pc + 1;
+        //operand = memory[memory[(memory[temp + 1] << 8 | memory[temp]) + regY]];
+        //operand = readMemory((temp + 1 << 8 | temp) + regY);
+        pc += 2;
+    	opCount = 1;
+        break;
+    default:
+        cout << "Address mode: Unknown opcode: 0x" << hex << opcode << " at PC: 0x" << +pc << endl;
+        break;
+    }
 
-	// Select instruction
-	switch (opcode) {
-	case 0x69:
-	case 0x65:
-	case 0x75:
-	case 0x6D:
-	case 0x7D:
-	case 0x79:
-	case 0x61:
-	case 0x71:
-		instrName = "ADC";
-		ADC();
-		break;
-	case 0x29:
-	case 0x25:
-	case 0x35:
-	case 0x2D:
-	case 0x3D:
-	case 0x39:
-	case 0x21:
-	case 0x31:
-		instrName = "AND";
-		AND();
-		break;
-	case 0x0A:
-	case 0x06:
-	case 0x16:
-	case 0x0E:
-	case 0x1E:
-		instrName = "ASL";
-		ASL();
-		break;
-	case 0x90:
-		instrName = "BCC";
-		BCC();
-		break;
-	case 0xB0:
-		instrName = "BCS";
-		BCS();
-		break;
-	case 0xF0:
-		instrName = "BEQ";
-		BEQ();
-		break;
-	case 0x24:
-	case 0x2C:
-		instrName = "BIT";
-		BIT();
-		break;
-	case 0x30:
-		instrName = "BMI";
-		BMI();
-		break;
-	case 0xD0:
-		instrName = "BNE";
-		BNE();
-		break;
+    // Select instruction
+    switch (opcode) {
+    case 0x69: case 0x65: case 0x75: case 0x6D:
+    case 0x7D: case 0x79: case 0x61: case 0x71:
+    	instrName = "ADC";
+        ADC();
+        break;
+    case 0x29: case 0x25: case 0x35: case 0x2D:
+    case 0x3D: case 0x39: case 0x21: case 0x31:
+    	instrName = "AND";
+        AND();
+        break;
+    case 0x0A: case 0x06: case 0x16: case 0x0E:
+    case 0x1E:
+    	instrName = "ASL";
+        ASL();
+        break;
+    case 0x90:
+    	instrName = "BCC";
+        BCC();
+        break;
+    case 0xB0:
+    	instrName = "BCS";
+        BCS();
+        break;
+    case 0xF0:
+    	instrName = "BEQ";
+        BEQ();
+        break;
+    case 0x24: case 0x2C:
+    	instrName = "BIT";
+        BIT();
+        break;
+    case 0x30:
+    	instrName = "BMI";
+        BMI();
+        break;
+    case 0xD0:
+    	instrName = "BNE";
+        BNE();
+        break;
 	case 0x10:
 		instrName = "BPL";
 		BPL();
@@ -448,273 +327,208 @@ void CPU::cycle() {
 		BRK();
 		break;
 	case 0x50:
-		instrName = "BVC";
-		BVC();
-		break;
-	case 0x70:
-		instrName = "BVS";
-		BVS();
-		break;
-	case 0x18:
-		instrName = "CLC";
-		CLC();
-		break;
-	case 0xD8:
-		instrName = "CLD";
-		CLD();
-		break;
-	case 0x58:
-		instrName = "CLI";
-		CLI();
-		break;
-	case 0xB8:
-		instrName = "CLV";
-		CLV();
-		break;
-	case 0xC9:
-	case 0xC5:
-	case 0xD5:
-	case 0xCD:
-	case 0xDD:
-	case 0xD9:
-	case 0xC1:
-	case 0xD1:
-		instrName = "CMP";
-		CMP();
-		break;
-	case 0xE0:
-	case 0xE4:
-	case 0xEC:
-		instrName = "CPX";
-		CPX();
-		break;
-	case 0xC0:
-	case 0xC4:
-	case 0xCC:
-		instrName = "CPY";
-		CPY();
-		break;
-	case 0xC6:
-	case 0xD6:
-	case 0xCE:
-	case 0xDE:
-		instrName = "DEC";
-		DEC();
-		break;
-	case 0xCA:
-		instrName = "DEX";
-		DEX();
-		break;
-	case 0x88:
-		instrName = "DEY";
-		DEY();
-		break;
-	case 0x49:
-	case 0x45:
-	case 0x55:
-	case 0x4D:
-	case 0x5D:
-	case 0x59:
-	case 0x41:
-	case 0x51:
-		instrName = "EOR";
-		EOR();
-		break;
-	case 0xE6:
-	case 0xF6:
-	case 0xEE:
-	case 0xFE:
-		instrName = "INC";
-		INC();
-		break;
-	case 0xE8:
-		instrName = "INX";
-		INX();
-		break;
-	case 0xC8:
-		instrName = "INY";
-		INY();
-		break;
-	case 0x6C:
-	case 0x4C:
-		instrName = "JMP";
-		JMP();
-		break;
-	case 0x20:
-		instrName = "JSR";
-		JSR();
-		break;
-	case 0xA9:
-	case 0xA5:
-	case 0xB5:
-	case 0xAD:
-	case 0xBD:
-	case 0xB9:
-	case 0xA1:
-	case 0xB1:
-		instrName = "LDA";
-		LDA();
-		break;
-	case 0xA6:
-	case 0xB6:
-	case 0xAE:
-	case 0xBE:
-	case 0xA2:
-		instrName = "LDX";
-		LDX();
-		break;
-	case 0xA0:
-	case 0xA4:
-	case 0xB4:
-	case 0xAC:
-	case 0xBC:
-		instrName = "LDY";
-		LDY();
-		break;
-	case 0x4A:
-	case 0x46:
-	case 0x56:
-	case 0x4E:
-	case 0x5E:
-		instrName = "LSR";
-		LSR();
-		break;
-	case 0xEA:
-		instrName = "NOP";
-		NOP();
-		break;
-	case 0x09:
-	case 0x05:
-	case 0x15:
-	case 0x0D:
-	case 0x1D:
-	case 0x19:
-	case 0x01:
-	case 0x11:
-		instrName = "ORA";
-		ORA();
-		break;
-	case 0x48:
-		instrName = "PHA";
-		PHA();
-		break;
-	case 0x08:
-		instrName = "PHP";
-		PHP();
-		break;
-	case 0x68:
-		instrName = "PLA";
-		PLA();
-		break;
-	case 0x28:
-		instrName = "PLP";
-		PLP();
-		break;
-	case 0x2A:
-	case 0x26:
-	case 0x36:
-	case 0x2E:
-	case 0x3E:
-		instrName = "ROL";
-		ROL();
-		break;
-	case 0x6A:
-	case 0x66:
-	case 0x76:
-	case 0x6E:
-	case 0x7E:
-		instrName = "ROR";
-		ROR();
-		break;
-	case 0x40:
-		instrName = "RTI";
-		RTI();
-		break;
-	case 0x60:
-		instrName = "RTS";
-		RTS();
-		break;
-	case 0xE9:
-	case 0xE5:
-	case 0xF5:
-	case 0xED:
-	case 0xFD:
-	case 0xF9:
-	case 0xE1:
-	case 0xF1:
-		instrName = "SBC";
-		SBC();
-		break;
-	case 0x38:
-		instrName = "SEC";
-		SEC();
-		break;
-	case 0xF8:
-		instrName = "SED";
-		SED();
-		break;
-	case 0x78:
-		instrName = "SEI";
-		SEI();
-		break;
-	case 0x85:
-	case 0x95:
-	case 0x8D:
-	case 0x9D:
-	case 0x99:
-	case 0x81:
-	case 0x91:
-		instrName = "STA";
-		STA();
-		break;
-	case 0x86:
-	case 0x8E:
-		instrName = "STX";
-		STX();
-		break;
-	case 0x84:
-	case 0x94:
-	case 0x8C:
-		instrName = "STY";
-		STY();
-		break;
-	case 0xAA:
-		instrName = "TAX";
-		TAX();
-		break;
-	case 0xA8:
-		instrName = "TAY";
-		TAY();
-		break;
-	case 0xBA:
-		instrName = "TSX";
-		TSX();
-		break;
-	case 0x8A:
-		instrName = "TXA";
-		TXA();
-		break;
-	case 0x9A:
-		instrName = "TXS";
-		TXS();
-		break;
-	case 0x98:
-		instrName = "TYA";
-		TYA();
-		break;
-	default:
-		cout << "Instruction select: Unknown opcode: 0x" << +opcode
-				<< " at PC: 0x" << +pc << endl;
-		break;
-	}
+    	instrName = "BVC";
+        BVC();
+        break;
+    case 0x70:
+    	instrName = "BVS";
+        BVS();
+        break;
+    case 0x18:
+    	instrName = "CLC";
+        CLC();
+        break;
+    case 0xD8:
+    	instrName = "CLD";
+        CLD();
+        break;
+    case 0x58:
+    	instrName = "CLI";
+        CLI();
+        break;
+    case 0xB8:
+    	instrName = "CLV";
+        CLV();
+        break;
+    case 0xC9: case 0xC5: case 0xD5: case 0xCD:
+    case 0xDD: case 0xD9: case 0xC1: case 0xD1:
+    	instrName = "CMP";
+        CMP();
+        break;
+    case 0xE0: case 0xE4: case 0xEC:
+    	instrName = "CPX";
+        CPX();
+        break;
+    case 0xC0: case 0xC4: case 0xCC:
+    	instrName = "CPY";
+    	CPY();
+        break;
+    case 0xC6: case 0xD6: case 0xCE: case 0xDE:
+    	instrName = "DEC";
+        DEC();
+        break;
+    case 0xCA:
+    	instrName = "DEX";
+        DEX();
+        break;
+    case 0x88:
+    	instrName = "DEY";
+        DEY();
+        break;
+    case 0x49: case 0x45: case 0x55: case 0x4D:
+    case 0x5D: case 0x59: case 0x41: case 0x51:
+    	instrName = "EOR";
+    	EOR();
+        break;
+    case 0xE6: case 0xF6: case 0xEE: case 0xFE:
+    	instrName = "INC";
+    	INC();
+        break;
+    case 0xE8:
+    	instrName = "INX";
+        INX();
+        break;
+    case 0xC8:
+    	instrName = "INY";
+        INY();
+        break;
+    case 0x6C: case 0x4C:
+    	instrName = "JMP";
+        JMP();
+        break;
+    case 0x20:
+    	instrName = "JSR";
+        JSR();
+        break;
+    case 0xA9: case 0xA5: case 0xB5: case 0xAD:
+    case 0xBD: case 0xB9: case 0xA1: case 0xB1:
+    	instrName = "LDA";
+        LDA();
+        break;
+    case 0xA6: case 0xB6: case 0xAE: case 0xBE:
+    case 0xA2:
+    	instrName = "LDX";
+        LDX();
+        break;
+    case 0xA0: case 0xA4: case 0xB4: case 0xAC:
+    case 0xBC:
+    	instrName = "LDY";
+        LDY();
+        break;
+    case 0x4A: case 0x46: case 0x56: case 0x4E:
+    case 0x5E:
+    	instrName = "LSR";
+        LSR();
+        break;
+    case 0xEA:
+    	instrName = "NOP";
+        NOP();
+        break;
+    case 0x09: case 0x05: case 0x15: case 0x0D:
+    case 0x1D: case 0x19: case 0x01: case 0x11:
+    	instrName = "ORA";
+        ORA();
+        break;
+    case 0x48:
+    	instrName = "PHA";
+        PHA();
+        break;
+    case 0x08:
+    	instrName = "PHP";
+        PHP();
+        break;
+    case 0x68:
+    	instrName = "PLA";
+        PLA();
+        break;
+    case 0x28:
+    	instrName = "PLP";
+        PLP();
+        break;
+    case 0x2A: case 0x26: case 0x36: case 0x2E:
+    case 0x3E:
+    	instrName = "ROL";
+        ROL();
+        break;
+    case 0x6A: case 0x66: case 0x76: case 0x6E:
+    case 0x7E:
+    	instrName = "ROR";
+        ROR();
+        break;
+    case 0x40:
+    	instrName = "RTI";
+        RTI();
+        break;
+    case 0x60:
+    	instrName = "RTS";
+        RTS();
+        break;
+    case 0xE9: case 0xE5: case 0xF5: case 0xED:
+    case 0xFD: case 0xF9: case 0xE1: case 0xF1:
+    	instrName = "SBC";
+        SBC();
+        break;
+    case 0x38:
+    	instrName = "SEC";
+        SEC();
+        break;
+    case 0xF8:
+    	instrName = "SED";
+        SED();
+        break;
+    case 0x78:
+    	instrName = "SEI";
+        SEI();
+        break;
+    case 0x85: case 0x95: case 0x8D: case 0x9D:
+    case 0x99: case 0x81: case 0x91:
+    	instrName = "STA";
+        STA();
+        break;
+    case 0x86: case 0x8E:
+    	instrName = "STX";
+        STX();
+        break;
+    case 0x84: case 0x94: case 0x8C:
+    	instrName = "STY";
+        STY();
+        break;
+    case 0xAA:
+    	instrName = "TAX";
+        TAX();
+        break;
+    case 0xA8:
+    	instrName = "TAY";
+        TAY();
+        break;
+    case 0xBA:
+    	instrName = "TSX";
+        TSX();
+        break;
+    case 0x8A:
+    	instrName = "TXA";
+        TXA();
+        break;
+    case 0x9A:
+    	instrName = "TXS";
+        TXS();
+        break;
+    case 0x98:
+    	instrName = "TYA";
+        TYA();
+        break;
+    default:
+        cout << "Instruction select: Unknown opcode: 0x" << +opcode << " at PC: 0x" << +pc << endl;
+        break;
+    }
 
-	cout << instrName << " ";
-	if (opCount == 2) {
+    cout << instrName << " ";
+    if (opCount == 2) {
 		cout << hex << operand << " = " << +readMemory(operand);
 	} else if (opCount == 1) {
 		cout << hex << +readMemory(operand);
 	}
-	cout << endl;
+    cout << endl;
 }
 
 void CPU::ADC() {
@@ -722,9 +536,7 @@ void CPU::ADC() {
 	setCarryFlag(temp > 0xFF);
 	setZeroFlag(temp == 0);
 	// TODO test and fix this overflow calc
-	setOverflowFlag(
-			(getBit(temp, 6) + getBit(temp, 7))
-					^ (getBit(temp, 7) + status[0]));
+	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + status[0]));
 	setNegativeFlag(temp & 0x80);
 	accumulator = temp;
 }
@@ -736,21 +548,20 @@ void CPU::AND() {
 }
 
 void CPU::ASL() {
-	uint8_t result;
+	uint8_t temp;
 	if (opcode != 0x0A) {
-		result = readMemory(operand);
+		temp = readMemory(operand);
 	} else {
-		result = operand;
+		temp = operand;
 	}
-	setCarryFlag(result & 0x80);
-	result <<= 1;
-	setZeroFlag(result == 0);
-	setNegativeFlag(result & 0x80);
-	accumulator = (result & 0xFF);
+	setCarryFlag(temp & 0x80);
+	temp <<= 1;
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
 	if (opcode != 0x0A) {
-		storeMemory(operand, result);
+		storeMemory(operand, temp);
 	} else {
-		accumulator = result;
+		accumulator = temp;
 	}
 }
 
@@ -804,8 +615,8 @@ void CPU::BPL() {
 
 void CPU::BRK() {
 	// push pc and status regs onto stack
-	pushStack(pc && 0x00FF); // LSB first
-	pushStack(pc && 0xFF00);
+	pushStack(pc & 0xFF00); // MSB first
+	pushStack(pc & 0x00FF);
 	pushStack((unsigned char) status.to_ulong());
 	// load IRQ val
 	pc = resolveAddress(0xFFFE);
@@ -863,9 +674,10 @@ void CPU::CPY() {
 }
 
 void CPU::DEC() {
-	operand--;
-	setZeroFlag(operand == 0);
-	setNegativeFlag(operand & 0x80);
+	uint16_t temp = readMemory(operand) - 1;
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
+	storeMemory(operand, temp);
 }
 
 void CPU::DEX() {
@@ -887,15 +699,10 @@ void CPU::EOR() {
 }
 
 void CPU::INC() {
-	uint16_t operandValue = readMemory(operand);
-	cout << "TEST: " << +operandValue << endl;
-	operandValue++;
-	storeMemory(operand, operandValue);
-	//operand++;
-	setZeroFlag(operandValue == 0);
-	setNegativeFlag(operandValue & 0x80);
-	//setZeroFlag(operand == 0);
-	//setNegativeFlag(operand & 0x80);
+	uint16_t temp = readMemory(operand) + 1;
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
+	storeMemory(operand, temp);
 }
 
 void CPU::INX() {
@@ -917,11 +724,9 @@ void CPU::JMP() {
 
 void CPU::JSR() {
 	pc--;
-	pushStack(pc && 0xFF00);
-	pushStack(pc && 0x00FF);
-	//stack[sp] = pc & 0x00FF;
-	//stack[sp + 1] = pc & 0xFF00;
-	pc = operand;
+	pushStack(pc & 0xFF00);
+	pushStack(pc & 0x00FF);
+	pc = readMemory(operand);
 }
 
 void CPU::LDA() {
@@ -943,11 +748,28 @@ void CPU::LDY() {
 }
 
 void CPU::LSR() {
+	uint8_t temp;
+	if (opcode != 0x4A) {
+		temp = readMemory(operand);
+	} else {
+		temp = operand;
+	}
+	setCarryFlag(temp & 0x01);
+	temp >>= 1;
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
+	if (opcode != 0x4A) {
+		storeMemory(operand, temp);
+	} else {
+		accumulator = temp;
+	}
+/*	uint16_t temp;
+	if (opcode )
 	int result = operand >> 1;
 	setCarryFlag(getBit(operand, 0));
 	setZeroFlag(result == 0);
 	setNegativeFlag(result & 0x80);
-	accumulator = (result & 0xFF);
+	accumulator = (result & 0xFF);*/
 }
 
 void CPU::NOP() {
@@ -975,23 +797,67 @@ void CPU::PLA() {
 }
 
 void CPU::PLP() {
-	status = popStack();
+	// TODO test this function
+	string temp = to_string(popStack());
+	for (int i = 0; i < 7; i++) {
+		status[i] = temp[i];
+	}
 }
 
 void CPU::ROL() {
-	int result = operand << 1;
-	setCarryFlag(getBit(operand, 7));
-	setZeroFlag(result);
-	setNegativeFlag(result & 0x80);
-	accumulator = (result & 0xFF);
+	uint8_t temp;
+	if (opcode != 0x2A) {
+		temp = readMemory(operand);
+	} else {
+		temp = operand;
+	}
+	// rotate 1 byte left, bit 0 becomes old carry, carry becomes old bit 7
+	uint8_t carry = getCarryFlag();
+	setCarryFlag(temp & 0x80);
+	temp <<= 1;
+	temp |= carry;
+
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
+	if (opcode != 0x2A) {
+		storeMemory(operand, temp);
+	} else {
+		accumulator = temp;
+	}
+//	int result = operand << 1;
+//	setCarryFlag(getBit(operand, 7));
+//	setZeroFlag(result);
+//	setNegativeFlag(result & 0x80);
+//	accumulator = (result & 0xFF);
 }
 
 void CPU::ROR() {
-	int result = operand >> 1;
-	setCarryFlag(getBit(operand, 0));
-	setZeroFlag(result);
-	setNegativeFlag(result & 0x80);
-	accumulator = (result & 0xFF);
+	uint8_t temp;
+	if (opcode != 0x6A) {
+		temp = readMemory(operand);
+	} else {
+		temp = operand;
+	}
+	// rotate 1 byte right, bit 7 becomes old carry, carry becomes old bit 0
+	uint8_t carry = getCarryFlag();
+	// move carry to 7th bit as we're replacing bit 7, rather than bit 0 as with ROL
+	carry <<= 7;
+	setCarryFlag(temp & 0x01);
+	temp >>= 1;
+	temp |= carry;
+
+	setZeroFlag(temp == 0);
+	setNegativeFlag(temp & 0x80);
+	if (opcode != 0x6A) {
+		storeMemory(operand, temp);
+	} else {
+		accumulator = temp;
+	}
+//	int result = operand >> 1;
+//	setCarryFlag(getBit(operand, 0));
+//	setZeroFlag(result);
+//	setNegativeFlag(result & 0x80);
+//	accumulator = (result & 0xFF);
 }
 
 void CPU::RTI() {
@@ -1009,15 +875,21 @@ void CPU::RTS() {
 }
 
 void CPU::SBC() {
-	uint16_t result = accumulator - readMemory(operand) - (1 - getCarryFlag());
-	setCarryFlag(result > 0xFF);
-	setZeroFlag(accumulator == 0);
+	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
+	setCarryFlag(temp > 0xFF);
+	setZeroFlag(temp == 0);
 	// TODO test and fix this overflow calc
-	setOverflowFlag(
-			!((getBit(result, 6) + getBit(result, 7))
-					^ (getBit(result, 7) + status[0])));
-	setNegativeFlag(result & 0x80);
-	accumulator = (result & 0xFF);
+	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + status[0]));
+	setNegativeFlag(temp & 0x80);
+	accumulator = temp;
+
+//	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
+//	setCarryFlag(result > 0xFF);
+//	setZeroFlag(accumulator == 0);
+//	// TODO test and fix this overflow calc
+//	setOverflowFlag(!((getBit(result, 6) + getBit(result, 7)) ^ (getBit(result, 7) + status[0])));
+//	setNegativeFlag(result & 0x80);
+//	accumulator = (result & 0xFF);
 }
 
 void CPU::SEC() {
