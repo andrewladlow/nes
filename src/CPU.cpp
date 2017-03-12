@@ -29,8 +29,9 @@ void CPU::reset() {
 	//Reset interrupts are triggered when the system first starts and when the user presses the
 	//reset button. When a reset occurs the system jumps to the address located at $FFFC and
 	//$FFFD.
-	pc = resolveAddress(0xFFFC);
-	//pc = 0x8000;
+	//pc = resolveAddress(0xFFFC);
+	//pc = 0xC000;
+	pc = 0x8000;
 	sp = 0xFF;
 	status.reset();
 	accumulator = 0;
@@ -62,25 +63,25 @@ void CPU::storeMemory(uint16_t address, uint8_t value) {
 	} else if (address >= 0x2000) {
 		switch(address & 0x007) {
 		case 0:
-			ppu->setControlReg1(value);
+			ppu->setPPUCtrl(value);
 			break;
 		case 1:
-			ppu->setControlReg2(value);
+			ppu->setPPUMask(value);
 			break;
 		case 3:
-			ppu->setSramAddrReg(value);
+			ppu->setOAMAddr(value);
 			break;
 		case 4:
-			ppu->setSramIOReg(value);
+			ppu->setOAMData(value);
 			break;
 		case 5:
-			ppu->setVramAddrReg1(value);
+			ppu->setPPUScroll(value);
 			break;
 		case 6:
-			ppu->setVramAddrReg2(value);
+			ppu->setPPUAddr(value);
 			break;
 		case 7:
-			ppu->setVramIOReg(value);
+			ppu->setPPUData(value);
 			break;
 		}
 	} else {
@@ -137,6 +138,16 @@ uint8_t CPU::popStack() {
 	return value;
 }
 
+void CPU::NMI() {
+	cout << "Debug: NMI occured" << endl;
+	// push pc and status regs onto stack
+	pushStack(pc & 0xFF00); // MSB first
+	pushStack(pc & 0x00FF);
+	pushStack((unsigned char) status.to_ulong());
+	// load NMI val
+	pc = resolveAddress(0xFFFA);
+}
+
 void CPU::cycle() {
 	//cout << "CPU Cycle started" << endl;
 	debug();
@@ -185,7 +196,12 @@ void CPU::cycle() {
     case 0xED: case 0x8D: case 0x8E: case 0x8C:
         operand = resolveAddress(pc + 1);
         pc += 3;
-        opCount = 2;
+        // TODO revise fix here
+        if (opcode == 0x4C) {
+        	opCount = 3;
+        } else {
+        	opCount = 2;
+        }
         break;
     // Absolute, X
     case 0x7D: case 0x3D: case 0xDD: case 0xDE:
@@ -209,7 +225,7 @@ void CPU::cycle() {
         temp = resolveAddress(pc + 1);
         // pc set to data in memory address pointed to by operands
         operand = resolveAddress(temp);
-        opCount = 2;
+        opCount = 1;
         break;
     }
     // Implied
@@ -523,7 +539,9 @@ void CPU::cycle() {
     }
 
     cout << instrName << " ";
-    if (opCount == 2) {
+    if (opCount == 3) {
+    	cout << hex << operand;
+    } else if (opCount == 2) {
 		cout << hex << operand << " = " << +readMemory(operand);
 	} else if (opCount == 1) {
 		cout << hex << +readMemory(operand);
@@ -719,14 +737,14 @@ void CPU::INY() {
 
 void CPU::JMP() {
 	// TODO possible JMP problem with indirect on page boundary
-	pc = readMemory(operand);
+	pc = operand;
 }
 
 void CPU::JSR() {
 	pc--;
 	pushStack(pc & 0xFF00);
 	pushStack(pc & 0x00FF);
-	pc = readMemory(operand);
+	pc = operand;
 }
 
 void CPU::LDA() {

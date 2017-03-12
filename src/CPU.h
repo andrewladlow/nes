@@ -39,9 +39,11 @@ public:
     bool getCarryFlag();
     void setCarryFlag(bool input);
 
+    void NMI();
+
 private:
-    char *prgRom;
     PPU *ppu;
+    char *prgRom;
 
     char cpuRam[2048];
     char sRam[8192];
