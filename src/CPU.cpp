@@ -111,13 +111,13 @@ uint8_t CPU::readMemory(uint16_t address) {
 //			return ppu->getControlReg2();
 //			break;
 		case 2:
-			return ppu->getStatusReg();
+			return ppu->getPPUStatus();
 			break;
 		case 4:
-			return ppu->getSramIOReg();
+			return ppu->getOAMData();
 			break;
 		case 7:
-			return ppu->getVramIOReg();
+			return ppu->getVramAddr();
 			break;
 		}
 	} else {

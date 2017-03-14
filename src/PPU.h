@@ -8,33 +8,41 @@ public:
     PPU();
     ~PPU();
 
-    void setPPUCtrl(uint8_t value);
+    void setppuCtrl(uint8_t value);
 
-    void setPPUMask(uint8_t value);
+    void setppuMask(uint8_t value);
 
-    uint8_t getPPUStatus();
-    void setPPUStatus(uint8_t value);
+    uint8_t getppuStatus();
+    void setppuStatus(uint8_t value);
 
-    void setOAMAddr(uint8_t value);
+    void setoamAddr(uint8_t value);
 
-    uint8_t getOAMData();
-    void setOAMData(uint8_t value);
+    uint8_t getoamData();
+    void setoamData(uint8_t value);
 
-    void setPPUScroll(uint8_t value);
+    void setppuScroll(uint8_t value);
 
-    void setPPUAddr(uint8_t value);
+    void setppuAddr(uint8_t value);
 
-    uint8_t getPPUData();
-    void setPPUData(uint8_t value);
+    uint8_t getppuData();
+    void setppuData(uint8_t value);
 
-    bool getVBlank();
-    void setVBlank(bool value);
+    bool getvBlank();
 
     void renderScanlines();
+
+    void updateScrollCounters();
+
+    uint16_t getVramAddr();
+
+    void incVramAddr(uint16_t value);
+    void updateVramAddr(uint16_t value);
 
 private:
     char vRam[4096];
     char sprRam[256];
+
+    uint8_t vRamBuffer;
 
     uint8_t ppuCtrl;
     uint8_t ppuMask;
@@ -59,6 +67,23 @@ private:
     uint8_t cntVT;
     uint8_t cntHT;
 
+    bool vramInc32;
+    bool sprTable;
+    bool sprSize;
+
+	bool greyscale;
+	bool showBGLeft;
+	bool showSprLeft;
+	bool showBG;
+	bool showSpr;
+	bool emphR;
+	bool emphG;
+	bool emphB;
+
+	bool sprOverflow;
+	bool spr0Hit;
+
+	bool vBlank;
 
     // determine first or second write for PPUSCROLL and PPUADDR
     bool written;

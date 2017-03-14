@@ -6,6 +6,8 @@ using namespace std;
 PPU::PPU() {
     cout << "New PPU created" << endl;
 
+    vRamBuffer = NULL;
+
     ppuCtrl = 0;
     ppuMask = 0;
     ppuStatus = 0;
@@ -20,6 +22,13 @@ PPU::PPU() {
     cntH = 0;
     cntVT = 0;
     cntHT = 0;
+
+    vramInc32 = false;
+    sprTable = false;
+    sprSize = false;
+
+    sprOverflow = false;
+    spr0Hit = false;
 
     written = false;
 
@@ -72,64 +81,72 @@ void PPU::renderScanlines() {
 		if (i <= 19) {
 			// ?
 		} else if (i == 20) {
-			// update scroll counters
+			updateScrollCounters();
+			// TODO increment scroll counters during render
 		} else if (i <= 260) {
 			// render
 		} else {
-			setVBlank(1);
+			vBlank = 1;
 		}
 	}
 }
 
-bool PPU::getVBlank() {
-	return ppuStatus & 0x80;
+bool PPU::getvBlank() {
+	return vBlank;
 }
 
-void PPU::setVBlank(bool value) {
-	if (value) {
-		ppuStatus |= 0x80;
-	} else {
-		ppuStatus -= 0x80;
-	}
-}
-
-
-void PPU::setPPUCtrl(uint8_t value) { // 2000
+void PPU::setppuCtrl(uint8_t value) { // 2000
 	//ppuCtrl = value;
-	regV = value & 0x02;
 	regH = value & 0x01;
+	regV = value & 0x02;
+	vramInc32 = value & 0x04;
+	sprTable = value & 0x08;
 	regS = value & 0x10;
+	sprSize = value & 0x20;
+	vBlank = value & 0x80;
 }
 
-void PPU::setPPUMask(uint8_t value) { // 2001
-	ppuMask = value;
+void PPU::setppuMask(uint8_t value) { // 2001
+	//ppuMask = value;
+	greyscale = value & 0x01;
+	showBGLeft = value & 0x02;
+	showSprLeft = value & 0x04;
+	showBG = value & 0x08;
+	showSpr = value & 0x10;
+	emphR = value & 0x20;
+	emphG = value & 0x40;
+	emphB = value & 0x80;
 }
 
-uint8_t PPU::getPPUStatus() { // 2002
-	setVBlank(0);
+uint8_t PPU::getppuStatus() { // 2002
+	uint8_t status = 0;
+	// TODO not concerned with lower 5 bits here?
+	status &= sprOverflow << 5;
+	status &= spr0Hit << 6;
+	status &= vBlank << 7;
+
+	vBlank = 0;
 	written = false; // reset PPUSCROLL / PPUADDR latch
 	return ppuStatus;
 }
 
-void PPU::setPPUStatus(uint8_t value) { // 2002
-	ppuStatus = value;
-}
 
-void PPU::setOAMAddr(uint8_t value) { // 2003
+void PPU::setoamAddr(uint8_t value) { // 2003
 	oamAddr = value;
+	// TODO consider value during rendering
 }
 
-uint8_t PPU::getOAMData() { // 2004
-	return oamData;
+uint8_t PPU::getoamData() { // 2004
+	return sprRam[oamAddr];
 }
 
-void PPU::setOAMData(uint8_t value) { // 2004
+void PPU::setoamData(uint8_t value) { // 2004
 	//oamData = value;
 	sprRam[oamAddr] = value;
 	oamAddr++;
 }
 
-void PPU::setPPUScroll(uint8_t value) { // 2005
+void PPU::setppuScroll(uint8_t value) { // 2005
 	//ppuScroll = value;
 
 	if (!written) {
@@ -143,38 +160,88 @@ void PPU::setPPUScroll(uint8_t value) { // 2005
 	written = !written;
 }
 
-void PPU::setPPUAddr(uint8_t value) { // 2006
-	!ppuAddr = value;
+void PPU::setppuAddr(uint8_t value) { // 2006
+	// ppuAddr = value;
 
 	if (!written) {
 		regFV = value & 0x30;
-		regFV &= 0xBF;
-		regV = value & 0x0F;
+		//regFV &= 0xBF; not required?
+		regV = value & 0x08;
 		regH = value & 0x04;
 		regVT = value & 0x03;
 	} else {
 		regVT = value & 0xE0;
 		regHT = value & 0x1F;
 
-		updateCounters();
+		updateScrollCounters();
 	}
 
 	written = !written;
 }
 
-uint8_t PPU::getPPUData() { // 2007
-	return ppuData;
+uint8_t PPU::getppuData() { // 2007
+	//return ppuData;
+	uint16_t vRamAddr = getVramAddr();
+	uint8_t result = 0;
+	//
+	if (vRamAddr <= 0x3EFF && vRamBuffer != NULL) {
+		result = vRamBuffer;
+	} else {
+		result = vRam[vRamAddr];
+	}
+
+	vRamBuffer = vRam[vRamAddr];
+	incVramAddr(vRamAddr);
+	return result;
 }
 
-void PPU::setPPUData(uint8_t value) { // 2007
-	ppuData = value;
+void PPU::setppuData(uint8_t value) { // 2007
+	//ppuData = value;
+	uint16_t vRamAddr = getVramAddr();
+	vRam[vRamAddr] = value;
+	incVramAddr(vRamAddr);
 }
 
 // load counters with values of their latches
-void PPU::updateCounters() {
+void PPU::updateScrollCounters() {
 	cntFV = regFV;
 	cntV = regV;
 	cntH = regH;
 	cntVT = regVT;
 	cntHT = regHT;
 }
+
+// Retrieve vram address from daisy-chained counters
+uint16_t PPU::getVramAddr() {
+	uint16_t result = 0;
+	result = cntHT;
+	result &= cntVT << 5;
+	result &= cntH << 10;
+	result &= cntV << 11;
+	result &= cntFV << 12;
+	return result;
+}
+
+// Increment address supplied by getVramAddr() above
+void PPU::incVramAddr(uint16_t value) {
+	uint8_t updateAmount = 0;
+	uint16_t vramAddr = value;
+	if (vramInc32) {
+		updateAmount = 32;
+	} else {
+		updateAmount = 1;
+	}
+
+	vramAddr += updateAmount & 0x7FFF; // all 5 counters total 15 bits rather than 16
+	updateVramAddr(vramAddr);
+}
+
+// Update counters with new address after it has been incremented
+void PPU::updateVramAddr(uint16_t value) {
+	cntFV = (value >> 12) & 0x03;
+	cntV = (value >> 11) & 0x01;
+	cntH = (value >> 10) & 0x01;
+	cntVT = (value >> 5) & 0x1F;
+	cntHT = value & 0x1F;
+}
+
