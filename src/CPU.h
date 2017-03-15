@@ -43,6 +43,7 @@ public:
 
 private:
     PPU *ppu;
+
     char *prgRom;
 
     char cpuRam[2048];

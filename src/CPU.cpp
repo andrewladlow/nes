@@ -63,25 +63,25 @@ void CPU::storeMemory(uint16_t address, uint8_t value) {
 	} else if (address >= 0x2000) {
 		switch(address & 0x007) {
 		case 0:
-			ppu->setPPUCtrl(value);
+			ppu->setppuCtrl(value);
 			break;
 		case 1:
-			ppu->setPPUMask(value);
+			ppu->setppuMask(value);
 			break;
 		case 3:
-			ppu->setOAMAddr(value);
+			ppu->setoamAddr(value);
 			break;
 		case 4:
-			ppu->setOAMData(value);
+			ppu->setoamData(value);
 			break;
 		case 5:
-			ppu->setPPUScroll(value);
+			ppu->setppuScroll(value);
 			break;
 		case 6:
-			ppu->setPPUAddr(value);
+			ppu->setppuAddr(value);
 			break;
 		case 7:
-			ppu->setPPUData(value);
+			ppu->setppuData(value);
 			break;
 		}
 	} else {
@@ -111,10 +111,10 @@ uint8_t CPU::readMemory(uint16_t address) {
 //			return ppu->getControlReg2();
 //			break;
 		case 2:
-			return ppu->getPPUStatus();
+			return ppu->getppuStatus();
 			break;
 		case 4:
-			return ppu->getOAMData();
+			return ppu->getoamData();
 			break;
 		case 7:
 			return ppu->getVramAddr();
@@ -258,7 +258,8 @@ void CPU::cycle() {
     case 0x90: case 0xB0: case 0xD0: case 0xF0:
         operand = pc + 1;
         pc += 2;
-    	opCount = 1;
+    	opCount = 4;
+    	temp = pc + (readMemory(operand) ^ 0x80) - 0x80;
         break;
     // Indirect, X (Pre-indexed)
     case 0x61: case 0x21: case 0xC1: case 0x41:
@@ -539,7 +540,9 @@ void CPU::cycle() {
     }
 
     cout << instrName << " ";
-    if (opCount == 3) {
+    if (opCount == 4) {
+    	cout << temp; // TODO more elegant solution for this...
+    } else if (opCount == 3) {
     	cout << hex << operand;
     } else if (opCount == 2) {
 		cout << hex << operand << " = " << +readMemory(operand);
@@ -627,6 +630,9 @@ void CPU::BNE() {
 
 void CPU::BPL() {
 	if (!getNegativeFlag()) {
+		//cout << "TEST1: " << pc << endl;
+		//cout << "TEST2: " << (readMemory(operand) ^ 0x80) - 0x80 << endl;
+		//cout << "TEST3: " << pc + (readMemory(operand) ^ 0x80) - 0x80 << endl;
 		pc += (readMemory(operand) ^ 0x80) - 0x80;
 	}
 }
@@ -750,6 +756,7 @@ void CPU::JSR() {
 void CPU::LDA() {
 	accumulator = readMemory(operand);
 	setZeroFlag(accumulator == 0);
+	//cout << "TEST: " << +accumulator << " " << (accumulator & 0x80) << endl;
 	setNegativeFlag(accumulator & 0x80);
 }
 
@@ -791,7 +798,6 @@ void CPU::LSR() {
 }
 
 void CPU::NOP() {
-
 }
 
 void CPU::ORA() {

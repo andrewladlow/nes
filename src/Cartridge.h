@@ -1,5 +1,5 @@
-#ifndef CARTRIDGE_H
-#define CARTRIDGE_H
+#ifndef CARTRIDGE_H_
+#define CARTRIDGE_H_
 
 #include <iostream>
 #include <bitset>
@@ -26,4 +26,4 @@ private:
     int ramSize;
 };
 
-#endif // CARTRIDGE_H
+#endif

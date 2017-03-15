@@ -1,9 +1,9 @@
-#ifndef PPU_H
-#define PPU_H
+#ifndef PPU_H_
+#define PPU_H_
 
+#include <iostream>
 
-class PPU
-{
+class PPU {
 public:
     PPU();
     ~PPU();
@@ -39,6 +39,8 @@ public:
     void updateVramAddr(uint16_t value);
 
 private:
+
+
     char vRam[4096];
     char sprRam[256];
 
@@ -91,4 +93,4 @@ private:
     uint8_t readMemory(uint16_t address);
 };
 
-#endif // PPU_H
+#endif

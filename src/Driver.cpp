@@ -1,55 +1,44 @@
 #include <iostream>
+#include <thread>
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
 #include "CPU.h"
 #include "Cartridge.h"
 #include "Windows.h"
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-
-using namespace std;
-
-//string ExePath() {
-//    char buffer[MAX_PATH];
-//    GetModuleFileNameA( NULL, buffer, MAX_PATH );
-//    string::size_type pos = string( buffer ).find_last_of( "\\/" );
-//    return string( buffer ).substr( 0, pos);
-//}
-
 
 int main(int argc, char * argv[]) {
-
-    //cout << "my directory is " << ExePath() << "\n";
-
-    string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/mario.nes";
+    std::string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/mario.nes";
     Cartridge cartridge(filePath);
 
     PPU *ppu = new PPU();
     CPU cpu(ppu, cartridge.getPrgRom());
-
     cpu.reset();
-    //while(true) {
-    for (int i = 0; i < 30; i++) {
-    	cpu.cycle();
-
-    	if (ppu->getvBlank()) {
-    		cpu.NMI();
-    	}
-    }
 
 
 
-//	sf::RenderWindow window(sf::VideoMode(640,480), "Window");
-//
-//	while (window.isOpen()) {
-//		sf::Event event;
-//		while (window.pollEvent(event)) {
-//			if (event.type == sf::Event::Closed) {
-//				window.close();
-//			}
-//		}
-//
-//		window.clear(sf::Color::Black);
-//
-//		window.display();
-//	}
-    return 0;
+    sf::RenderWindow window(sf::VideoMode(256,240), "NES Emulator");
+ 	window.setFramerateLimit(60);
+
+ 	while (true) {
+		while (window.isOpen()) {
+			sf::Event event;
+			while (window.pollEvent(event)) {
+				if (event.type == sf::Event::Closed) {
+					window.close();
+					return 0;
+				}
+			}
+
+			cpu.cycle();
+			if (ppu->getvBlank()) {
+				cpu.NMI();
+			}
+
+			window.clear(sf::Color::Black);
+			window.draw(sf::CircleShape(50.0F, 30));
+			window.display();
+		}
+	}
+
 }
+

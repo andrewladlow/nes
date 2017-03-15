@@ -1,10 +1,11 @@
-#include <iostream>
 #include "PPU.h"
 
 using namespace std;
 
 PPU::PPU() {
     cout << "New PPU created" << endl;
+
+    //this->display = display;
 
     vRamBuffer = NULL;
 
@@ -76,15 +77,20 @@ uint8_t PPU::readMemory(uint16_t address) {
 }
 
 void PPU::renderScanlines() {
-	// for each scanline
-	for (int i = 0; i < 261; i++) {
+	spr0Hit = 0;
+	vBlank = 0;
+	for (int i = 0; i <= 261; i++) {
 		if (i <= 19) {
 			// ?
 		} else if (i == 20) {
 			updateScrollCounters();
 			// TODO increment scroll counters during render
 		} else if (i <= 260) {
-			// render
+			//display->update(i);
+
+			// H and HT are updated at hblank whilst rendering is active
+			cntH = regH;
+			cntHT = regHT;
 		} else {
 			vBlank = 1;
 		}
@@ -119,11 +125,10 @@ void PPU::setppuMask(uint8_t value) { // 2001
 }
 
 uint8_t PPU::getppuStatus() { // 2002
-	uint8_t status = 0;
 	// TODO not concerned with lower 5 bits here?
-	status &= sprOverflow << 5;
-	status &= spr0Hit << 6;
-	status &= vBlank << 7;
+	ppuStatus &= sprOverflow << 5;
+	ppuStatus &= spr0Hit << 6;
+	ppuStatus &= vBlank << 7;
 
 	vBlank = 0;
 	written = false; // reset PPUSCROLL / PPUADDR latch
