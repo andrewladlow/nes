@@ -40,10 +40,20 @@ PPU::PPU() {
 	for (int i = 0; i < 256; i++) {
 		sprRam[i] = 0;
 	}
+
+	for (int i = 0; i < 256; i++) {
+		for (int j = 0; j < 240; j++) {
+			pixelBuffer[i][j] = 0;
+		}
+	}
 }
 
 PPU::~PPU() {
 
+}
+
+array2d<uint8_t, 256, 240> PPU::getpixelBuffer() {
+	return pixelBuffer;
 }
 
 uint8_t PPU::readMemory(uint16_t address) {
@@ -76,24 +86,142 @@ uint8_t PPU::readMemory(uint16_t address) {
 	return vRam[address];
 }
 
-void PPU::renderScanlines() {
-	spr0Hit = 0;
-	vBlank = 0;
-	for (int i = 0; i <= 261; i++) {
-		if (i <= 19) {
-			// ?
-		} else if (i == 20) {
-			updateScrollCounters();
-			// TODO increment scroll counters during render
-		} else if (i <= 260) {
-			//display->update(i);
+//void PPU::renderScanline(int scanline) {
+//	if (scanline == 0) {
+//		spr0Hit = 0;
+//		vBlank = 0;
+//	} else if (scanline == 20) {
+//		// TODO increment scroll counters during render
+//		updateScrollCounters();
+//	} else if (scanline <= 260) {
+//		uint16_t nameTableAddr;
+//		switch (regH & regV) {
+//		case 0:
+//			nameTableAddr = 0x2000;
+//			break;
+//		case 1:
+//			nameTableAddr = 0x2400;
+//			break;
+//		case 2:
+//			nameTableAddr = 0x2800;
+//			break;
+//		case 3:
+//			nameTableAddr = 0x2C00;
+//			break;
+//
+//		}
+//
+//		// every pixel in
+//		for (int i = 0; i < 8; i++) {
+//
+//		}
+//
+//
+//
+//
+//
+//		// H and HT are updated at hblank whilst rendering is active
+//		cntH = regH;
+//		cntHT = regHT;
+//	} else {
+//		vBlank = 1;
+//	}
+//}
 
+void PPU::cycle() {
+	// one of the two must be active to enable PPU rendering
+	if (showBG || showSpr) {
+		if (currentScanline == 0) {
+			spr0Hit = 0;
+			vBlank = 0;
+			// TODO according to scrolling skinny this is correct?
+			// this is also suggested by http://forums.nesdev.com/viewtopic.php?t=664 "at frame start" loopyV = loopyT
+			updateScrollCounters();
+		} else if (currentScanline == 20) {
+			// TODO increment scroll counters during render
+			updateScrollCounters();
+		} else if (currentScanline <= 260) {
+			// TODO consider custom screen width
+			if (currentScanlineCycle >= 0 && currentScanlineCycle < 256) {
+
+				uint8_t pixelX = currentScanlineCycle;
+				// render scanlines range from 21 - 260
+				uint8_t pixelY = currentScanline - 21;
+
+				// TODO screen width
+				while (pixelX < 256) {
+					// draw to pixel buffer
+
+					// check for new tile
+					if (true) {
+						// select next tile http://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
+
+					}
+
+				}
+
+
+
+
+
+				uint16_t vRamAddr = getVramAddr();
+
+				uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
+				uint8_t tile = readMemory(nameTableAddr);
+
+				uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
+
+				uint16_t patternTableIndex = readMemory(nameTableAddr);
+				uint16_t patternTableAddr = regS << 8;
+				// each tile occupies 16 bytes (1 set of 8 bytes for each of the 2 lower colour bits), hence shift left 4
+				// cntFV determining which row of the pattern table here?
+				patternTableAddr |= (tile << 4) | (vRamAddr >> 12);
+
+
+
+			}
+
+			// after a scanline is rendered, reset X scroll, inc Y
 			// H and HT are updated at hblank whilst rendering is active
+			// reload loopyT into loopyV
 			cntH = regH;
 			cntHT = regHT;
+
+			incrementVerticalScrollCounters();
 		} else {
 			vBlank = 1;
 		}
+
+		currentCycle++;
+		currentScanlineCycle++;
+
+		// 341 ppu cycles per scanline, 1 pixel per scanline
+		if (currentCycle % 341 == 0) {
+			currentScanline++;
+			currentScanlineCycle = 0;
+		}
+	}
+}
+
+void PPU::incrementVerticalScrollCounters() {
+	cntFV++;
+	if (cntFV == 8) {
+		cntFV = 0;
+		cntVT++;
+		// coarse Y cut off after 29
+		if (cntVT == 30) {
+			cntVT = 0;
+			cntV = !cntV;
+		}
+	}
+}
+
+void PPU::incrementHorizontalScrollCounters() {
+	cntHT++;
+	if (cntHT == 32) {
+		cntHT = 0;
+		// swap to next nametable
+		cntH = !cntH;
 	}
 }
 
@@ -249,4 +377,5 @@ void PPU::updateVramAddr(uint16_t value) {
 	cntVT = (value >> 5) & 0x1F;
 	cntHT = value & 0x1F;
 }
+
 

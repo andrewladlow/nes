@@ -3,10 +3,14 @@
 
 #include <iostream>
 
+template <typename T, int M, int N> using array2d = std::array<std::array<T, N>, M>;
+
 class PPU {
 public:
     PPU();
     ~PPU();
+
+    array2d<uint8_t, 256, 240> getpixelBuffer();
 
     void setppuCtrl(uint8_t value);
 
@@ -29,7 +33,7 @@ public:
 
     bool getvBlank();
 
-    void renderScanlines();
+    void renderScanline(int scanline);
 
     void updateScrollCounters();
 
@@ -38,8 +42,16 @@ public:
     void incVramAddr(uint16_t value);
     void updateVramAddr(uint16_t value);
 
-private:
+    void cycle();
 
+    void incrementVerticalScrollCounters();
+    void incrementHorizontalScrollCounters();
+private:
+    int currentCycle;
+    int currentScanline;
+    int currentScanlineCycle;
+
+    array2d<uint8_t, 256, 240> pixelBuffer;
 
     char vRam[4096];
     char sprRam[256];

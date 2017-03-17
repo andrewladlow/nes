@@ -1,25 +1,20 @@
-/*
- * DisplayController.h
- *
- *  Created on: 15 Mar 2017
- *      Author: Orcworm
- */
-
 #ifndef DISPLAYCONTROLLER_H_
 #define DISPLAYCONTROLLER_H_
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include "PPU.h"
+#include "Windows.h"
 
 class DisplayController {
 public:
-	DisplayController();
+	DisplayController(sf::RenderWindow *window, PPU *ppu);
 	~DisplayController();
+	void update();
 private:
 	sf::RenderWindow *window;
 	PPU *ppu;
 };
 
 
-#endif /* DISPLAYCONTROLLER_H_ */
+#endif
