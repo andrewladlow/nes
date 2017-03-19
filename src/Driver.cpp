@@ -17,8 +17,8 @@ int main(int argc, char * argv[]) {
 
 
 
-    sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(256,240), "NES Emulator");
- 	window->setFramerateLimit(60);
+//    sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(256,240), "NES Emulator");
+// 	window->setFramerateLimit(60);
 
  	//DisplayController controller(window);
 
@@ -50,36 +50,36 @@ int main(int argc, char * argv[]) {
 //		}
 //	}
 
- 	while (true) {
-		while (window->isOpen()) {
-			sf::Event event;
-			while (window->pollEvent(event)) {
-				if (event.type == sf::Event::Closed) {
-					window->close();
-					return 0;
-				}
-			}
-			cpu.cycle();
-
-			ppu->cycle();
-			ppu->cycle();
-			ppu->cycle();
-			if (ppu->getvBlank()) {
-				cpu.NMI();
-			}
-
-			window->clear(sf::Color::Black);
-
-			array2d pixelBuffer = ppu->getpixelBuffer();
-			for (int i = 0; i < 256; i++) {
-				for (int j = 0; j < 240; j++) {
-
-				}
-			}
-
-			window->display();
-		}
-	}
+// 	while (true) {
+//		while (window->isOpen()) {
+//			sf::Event event;
+//			while (window->pollEvent(event)) {
+//				if (event.type == sf::Event::Closed) {
+//					window->close();
+//					return 0;
+//				}
+//			}
+//			cpu.cycle();
+//
+//			ppu->cycle();
+//			ppu->cycle();
+//			ppu->cycle();
+//			if (ppu->getvBlank()) {
+//				cpu.NMI();
+//			}
+//
+//			window->clear(sf::Color::Black);
+//
+//			array2d pixelBuffer = ppu->getpixelBuffer();
+//			for (int i = 0; i < 256; i++) {
+//				for (int j = 0; j < 240; j++) {
+//
+//				}
+//			}
+//
+//			window->display();
+//		}
+//	}
 
 }
 

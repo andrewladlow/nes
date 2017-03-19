@@ -7,9 +7,9 @@
 
 #include "DisplayController.h"
 
-DisplayController::DisplayController(sf::RenderWindow *window, PPU *ppu) {
+DisplayController::DisplayController(sf::RenderWindow *window) {
 	this->window = window;
-	this->ppu = ppu;
+	//this->ppu = ppu;
 }
 
 DisplayController::~DisplayController() {
@@ -17,7 +17,7 @@ DisplayController::~DisplayController() {
 }
 
 void DisplayController::update() {
-	array2d pixelBuffer = ppu->getpixelBuffer();
+	//array2d pixelBuffer = ppu->getpixelBuffer();
 	for (int i = 0; i < 256; i++) {
 		for (int j = 0; j < 240; j++) {
 

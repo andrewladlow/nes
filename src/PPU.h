@@ -2,8 +2,18 @@
 #define PPU_H_
 
 #include <iostream>
+#include "DisplayController.h"
 
-template <typename T, int M, int N> using array2d = std::array<std::array<T, N>, M>;
+using namespace std;
+
+template <typename T, size_t M, size_t N> using array2d = array<array<T, N>, M>;
+
+
+struct colour {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+};
 
 class PPU {
 public:
@@ -46,11 +56,14 @@ public:
 
     void incrementVerticalScrollCounters();
     void incrementHorizontalScrollCounters();
+    void initPalette();
 private:
     int currentCycle;
     int currentScanline;
     int currentScanlineCycle;
 
+    struct colour palettes[5];
+    std::array<colour, 64> palette;
     array2d<uint8_t, 256, 240> pixelBuffer;
 
     char vRam[4096];
@@ -103,6 +116,8 @@ private:
     bool written;
 
     uint8_t readMemory(uint16_t address);
+
+
 };
 
 #endif

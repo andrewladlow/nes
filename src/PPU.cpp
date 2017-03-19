@@ -46,6 +46,8 @@ PPU::PPU() {
 			pixelBuffer[i][j] = 0;
 		}
 	}
+
+	initPalette();
 }
 
 PPU::~PPU() {
@@ -150,35 +152,42 @@ void PPU::cycle() {
 
 				// TODO screen width
 				while (pixelX < 256) {
+					uint16_t vRamAddr = getVramAddr();
+
+					uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
+					uint8_t tile = readMemory(nameTableAddr);
+
+					uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
+
+					uint16_t patternTableIndex = readMemory(nameTableAddr);
+					uint16_t patternTableAddr = regS << 8;
+					// each tile occupies 16 bytes (1 set of 8 bytes for each of the 2 lower colour bits), hence shift left 4
+					// cntFV determining which row of the pattern table here?
+					patternTableAddr |= (tile << 4) | (vRamAddr >> 12);
+
+					// fetch lower colour bits from pattern table
+					// according to qeed nes the lower bits are from table entries [0] and [7] rather than [8]?
+					uint8_t lowerPixelIndex = ((readMemory(patternTableAddr) & 0x80) >> 7) | ((readMemory(patternTableAddr + 8) & 0x80) >> 6);
+
+					// fetch upper colour bits from attribute table
+
+					// combine lower and upper to form pixel index
+
 					// draw to pixel buffer
+					pixelBuffer[pixelX][pixelY] = //TODO
+
+
+					pixelX++;
+
 
 					// check for new tile
-					if (true) {
-						// select next tile http://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
+					// "The HT counter is then clocked every 8 pixel dot clocks"
+					if ((pixelX + regFH) % 8 == 0) {
+					//if (pixelX % 8 == 0) {
+						incrementHorizontalScrollCounters();
 
 					}
-
 				}
-
-
-
-
-
-				uint16_t vRamAddr = getVramAddr();
-
-				uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
-				uint8_t tile = readMemory(nameTableAddr);
-
-				uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
-
-				uint16_t patternTableIndex = readMemory(nameTableAddr);
-				uint16_t patternTableAddr = regS << 8;
-				// each tile occupies 16 bytes (1 set of 8 bytes for each of the 2 lower colour bits), hence shift left 4
-				// cntFV determining which row of the pattern table here?
-				patternTableAddr |= (tile << 4) | (vRamAddr >> 12);
-
-
-
 			}
 
 			// after a scanline is rendered, reset X scroll, inc Y
@@ -203,6 +212,7 @@ void PPU::cycle() {
 	}
 }
 
+//http://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
 void PPU::incrementVerticalScrollCounters() {
 	cntFV++;
 	if (cntFV == 8) {
@@ -211,16 +221,21 @@ void PPU::incrementVerticalScrollCounters() {
 		// coarse Y cut off after 29
 		if (cntVT == 30) {
 			cntVT = 0;
+			// switch vertical nametable
 			cntV = !cntV;
+		} else if (cntVT == 31) {
+			cntVT = 0;
+			// if coarse Y set out of bounds, wrap to 0 but dont switch vertical nametable
 		}
 	}
 }
 
+//http://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
 void PPU::incrementHorizontalScrollCounters() {
 	cntHT++;
 	if (cntHT == 32) {
 		cntHT = 0;
-		// swap to next nametable
+		// switch horizontal nametable
 		cntH = !cntH;
 	}
 }
@@ -378,4 +393,22 @@ void PPU::updateVramAddr(uint16_t value) {
 	cntHT = value & 0x1F;
 }
 
-
+void PPU::initPalette() {
+	// std::array itself is a struct with 1 element being the actual array element? hence double braces
+	// can also remove braces and have a single list representing all elements?
+	// see https://social.msdn.microsoft.com/Forums/vstudio/en-US/e5ad8fa5-c9e8-4328-a7fa-af7a47ce2492/initialising-a-stdarray-of-structs?forum=vclanguage
+	// palette = { {1,2,3}, {4,5,6} }; does not work
+	// palette = {{ {1,2,3}, {4,5,6} }}; works
+	// palette = {1,2,3,4,5,6}; as does this
+	// TODO any alternative solution here?
+	palette = {{
+		{124,124,124}, {0,0,252}, {0,0,188}, {68,40,188}, {148,0,132}, {168,0,32}, {168,16,0}, {136,20,0},
+		{80,48,0}, {0,120,0}, {0,104,0},{0,88,0},{0,64,88},{0,0,0},{0,0,0},{0,0,0},
+		{188,188,188},{0,120,248},{0,88,248},{104,68,252},{216,0,204},{228,0,88},{248,56,0},{228,92,16},
+		{172,124,0},{0,184,0},{0,168,0},{0,168,68},{0,136,136},{0,0,0},{0,0,0},{0,0,0},
+		{248,248,248},{60,188,252},{104,136,252},{152,120,248},{248,120,248},{248,88,152},{248,120,88},{252,160,68},
+		{248,184,0},{184,248,24},{88,216,84},{88,248,152},{0,232,216},{120,120,120},{0,0,0},{0,0,0},
+		{252,252,252},{164,228,252},{184,184,248},{216,184,248},{248,184,248},{248,164,192},{240,208,176},{252,224,168},
+		{248,216,120},{216,248,120},{184,248,184},{184,248,216},{0,252,252},{248,216,248},{0,0,0},{0,0,0}
+	}};
+}
