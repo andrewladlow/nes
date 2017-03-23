@@ -152,8 +152,8 @@ uint8_t CPU::popStack() {
 void CPU::NMI() {
 	cout << "Debug: NMI occured" << endl;
 	// push pc and status regs onto stack
-	pushStack(pc & 0x00FF); // MSB first
-	pushStack(pc & 0xFF00);
+	pushStack(pc >> 8);
+	pushStack(pc);
 	pushStack(status);
 	//cout << hex << +status << endl;
 	//SEI();
@@ -579,8 +579,9 @@ void CPU::ADC() {
 	setZeroFlag(temp & 0xFF);
 	// overflow calc from http://nesdev.com/6502.txt
 	//setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + getBit(status,0)));
+	setOverflowFlag(!((accumulator ^ readMemory(operand)) & 0x80) && ((accumulator ^ temp) & 0x80));
 	setNegativeFlag(temp);
-	accumulator = temp;
+	accumulator = temp & 0xFF;
 }
 
 void CPU::AND() {
@@ -629,12 +630,13 @@ void CPU::BEQ() {
 }
 
 void CPU::BIT() {
-	setZeroFlag(accumulator & readMemory(operand));
+	uint8_t temp = readMemory(operand);
+	setZeroFlag(accumulator & temp);
 	// set overflow and negative (6,7) to memory value (6,7)
 	// TODO possible refactor here - no abstraction present
 	//status[6] = getBit(memory[operand], 6);
-	setOverflowFlag(getBit(readMemory(operand), 6));
-	setNegativeFlag(getBit(readMemory(operand), 7));
+	setOverflowFlag(0x40 & temp);
+	setNegativeFlag(temp);
 }
 
 void CPU::BMI() {
@@ -660,8 +662,8 @@ void CPU::BPL() {
 
 void CPU::BRK() {
 	// push pc and status regs onto stack
-	pushStack(pc & 0x00FF); // MSB first
-	pushStack(pc & 0xFF00);
+	pushStack(pc >> 8);
+	pushStack(pc);
 	setBreakFlag(1);
 	pushStack(status);
 	SEI();
@@ -699,7 +701,7 @@ void CPU::CLV() {
 
 void CPU::CMP() {
 	uint16_t temp = accumulator - readMemory(operand);
-	setCarryFlag(temp >= 0);
+	setCarryFlag(temp < 0x100);
 	setZeroFlag(temp);
 	// negative flag = result[7]
 	setNegativeFlag(temp);
@@ -707,14 +709,14 @@ void CPU::CMP() {
 
 void CPU::CPX() {
 	uint16_t temp = regX - readMemory(operand);
-	setCarryFlag(temp >= 0);
+	setCarryFlag(temp < 0x100);
 	setZeroFlag(temp);
 	setNegativeFlag(temp);
 }
 
 void CPU::CPY() {
 	uint16_t temp = regY - readMemory(operand);
-	setCarryFlag(temp >= 0);
+	setCarryFlag(temp < 0x100);
 	setZeroFlag(temp);
 	setNegativeFlag(temp);
 }
@@ -858,6 +860,7 @@ void CPU::ROL() {
 	} else {
 		temp = operand;
 	}
+
 	// rotate 1 byte left, bit 0 becomes old carry, carry becomes old bit 7
 	uint8_t carry = getCarryFlag();
 	setCarryFlag(temp & 0x80);
@@ -923,12 +926,11 @@ void CPU::RTS() {
 
 void CPU::SBC() {
 	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
-	setCarryFlag(temp > 0xFF);
-	setZeroFlag(temp);
-	// TODO test and fix this overflow calc
-	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + getBit(status,0)));
+	setCarryFlag(temp < 0x100);
+	setZeroFlag(temp & 0xFF);
+	setOverflowFlag(((accumulator ^ temp) & 0x80) && ((accumulator ^ readMemory(operand)) & 0x80));
 	setNegativeFlag(temp);
-	accumulator = temp;
+	accumulator = temp & 0xFF;
 
 //	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
 //	setCarryFlag(result > 0xFF);

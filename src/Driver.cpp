@@ -47,8 +47,8 @@ int main(int argc, char * argv[]) {
 
  	cpu.setDebug(1);
 
- 	while(true) {
- 	//for (int i = 0; i < 100; i++) {
+ 	//while(true) {
+ 	for (int i = 0; i < 3; i++) {
  		cpu.cycle();
  		ppu->cycle();
  	}
