@@ -9,14 +9,9 @@ PPU::PPU() {
 
     vRamBuffer = NULL;
 
-    ppuCtrl = 0;
-    ppuMask = 0;
     ppuStatus = 0;
     oamAddr = 0;
     oamData = 0;
-    ppuScroll = 0;
-    ppuAddr = 0;
-    ppuData = 0;
 
     cntFV = 0;
     cntV = 0;
@@ -33,6 +28,10 @@ PPU::PPU() {
 
     written = false;
 
+    currentScanline = 260;
+    currentCycle = 0;
+    currentScanlineCycle = 0;
+
 	for (int i = 0; i < 4096; i++) {
 		vRam[i] = 0;
 	}
@@ -43,7 +42,7 @@ PPU::PPU() {
 
 	for (int i = 0; i < 256; i++) {
 		for (int j = 0; j < 240; j++) {
-			pixelBuffer[i][j] = 0;
+			pixelBuffer[i][j] = sf::Color();
 		}
 	}
 
@@ -54,7 +53,7 @@ PPU::~PPU() {
 
 }
 
-array2d<uint8_t, 256, 240> PPU::getpixelBuffer() {
+array2d<sf::Color, 256, 240> PPU::getpixelBuffer() {
 	return pixelBuffer;
 }
 
@@ -88,61 +87,23 @@ uint8_t PPU::readMemory(uint16_t address) {
 	return vRam[address];
 }
 
-//void PPU::renderScanline(int scanline) {
-//	if (scanline == 0) {
-//		spr0Hit = 0;
-//		vBlank = 0;
-//	} else if (scanline == 20) {
-//		// TODO increment scroll counters during render
-//		updateScrollCounters();
-//	} else if (scanline <= 260) {
-//		uint16_t nameTableAddr;
-//		switch (regH & regV) {
-//		case 0:
-//			nameTableAddr = 0x2000;
-//			break;
-//		case 1:
-//			nameTableAddr = 0x2400;
-//			break;
-//		case 2:
-//			nameTableAddr = 0x2800;
-//			break;
-//		case 3:
-//			nameTableAddr = 0x2C00;
-//			break;
-//
-//		}
-//
-//		// every pixel in
-//		for (int i = 0; i < 8; i++) {
-//
-//		}
-//
-//
-//
-//
-//
-//		// H and HT are updated at hblank whilst rendering is active
-//		cntH = regH;
-//		cntHT = regHT;
-//	} else {
-//		vBlank = 1;
-//	}
-//}
-
 void PPU::cycle() {
-	// one of the two must be active to enable PPU rendering
-	if (showBG || showSpr) {
-		if (currentScanline == 0) {
-			spr0Hit = 0;
-			vBlank = 0;
-			// TODO according to scrolling skinny this is correct?
-			// this is also suggested by http://forums.nesdev.com/viewtopic.php?t=664 "at frame start" loopyV = loopyT
-			updateScrollCounters();
-		} else if (currentScanline == 20) {
-			// TODO increment scroll counters during render
-			updateScrollCounters();
-		} else if (currentScanline <= 260) {
+	//cout << currentScanline << endl;
+	//if (vBlank)
+	//cout << vBlank << endl;
+	if (currentScanline == 0) {
+		vBlank = 0;
+		spr0Hit = 0;
+		// TODO according to scrolling skinny this is correct?
+		// this is also suggested by http://forums.nesdev.com/viewtopic.php?t=664 "at frame start" loopyV = loopyT
+		updateScrollCounters();
+	} else if (currentScanline == 20) {
+		// TODO increment scroll counters during render
+		updateScrollCounters();
+	} else if (currentScanline <= 260) {
+		// one of the two must be active to enable PPU rendering
+		if (showBG || showSpr) {
+
 			// TODO consider custom screen width
 			if (currentScanlineCycle >= 0 && currentScanlineCycle < 256) {
 
@@ -153,13 +114,13 @@ void PPU::cycle() {
 				// TODO screen width
 				while (pixelX < 256) {
 					uint16_t vRamAddr = getVramAddr();
+					cout << "vram: " << hex << +vRamAddr << endl;
 
 					uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
 					uint8_t tile = readMemory(nameTableAddr);
 
 					uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
 
-					uint16_t patternTableIndex = readMemory(nameTableAddr);
 					uint16_t patternTableAddr = regS << 8;
 					// each tile occupies 16 bytes (1 set of 8 bytes for each of the 2 lower colour bits), hence shift left 4
 					// cntFV determining which row of the pattern table here?
@@ -170,44 +131,60 @@ void PPU::cycle() {
 					uint8_t lowerPixelIndex = ((readMemory(patternTableAddr) & 0x80) >> 7) | ((readMemory(patternTableAddr + 8) & 0x80) >> 6);
 
 					// fetch upper colour bits from attribute table
+					uint8_t attributeTableByte = readMemory(attributeTableAddr);
+					// http://forums.nesdev.com/viewtopic.php?f=3&t=14795&start=15
+					uint8_t quadrant = (cntVT & 0x02) << 1 | (cntHT & 0x02);
+
+					uint8_t upperPixelIndex = (attributeTableByte >> quadrant) & 0x03;
 
 					// combine lower and upper to form pixel index
+					uint8_t pixelIndex = (upperPixelIndex << 2) | lowerPixelIndex;
 
-					// draw to pixel buffer
-					pixelBuffer[pixelX][pixelY] = //TODO
 
+					pixelIndex += 0x3F00;
+					sf::Color pixelColour = palette[readMemory(pixelIndex)];
+
+					// assign pixel colour to buffer
+					pixelBuffer[pixelX][pixelY].r = pixelColour.r;
+					pixelBuffer[pixelX][pixelY].g = pixelColour.g;
+					pixelBuffer[pixelX][pixelY].b = pixelColour.b;
+					pixelBuffer[pixelX][pixelY].a = 255;
 
 					pixelX++;
-
 
 					// check for new tile
 					// "The HT counter is then clocked every 8 pixel dot clocks"
 					if ((pixelX + regFH) % 8 == 0) {
 					//if (pixelX % 8 == 0) {
 						incrementHorizontalScrollCounters();
-
 					}
 				}
 			}
-
-			// after a scanline is rendered, reset X scroll, inc Y
-			// H and HT are updated at hblank whilst rendering is active
-			// reload loopyT into loopyV
-			cntH = regH;
-			cntHT = regHT;
-
-			incrementVerticalScrollCounters();
-		} else {
-			vBlank = 1;
 		}
 
-		currentCycle++;
-		currentScanlineCycle++;
+		// after a scanline is rendered, reset X scroll, inc Y
+		// H and HT are updated at hblank whilst rendering is active
+		// reload loopyT into loopyV
+		cntH = regH;
+		cntHT = regHT;
 
-		// 341 ppu cycles per scanline, 1 pixel per scanline
-		if (currentCycle % 341 == 0) {
-			currentScanline++;
-			currentScanlineCycle = 0;
+		incrementVerticalScrollCounters();
+	} else {
+		vBlank = 1;
+	}
+
+	currentCycle++;
+	currentScanlineCycle++;
+
+	// 341 ppu cycles per scanline, 1 pixel per scanline
+	if (currentCycle % 341 == 0) {
+		currentScanline++;
+		currentScanlineCycle = 0;
+
+		// 261 scanlines per frame, checking bounds after above increment
+		if (currentScanline % 262 == 0) {
+			currentCycle = 0;
+			currentScanline = 0;
 		}
 	}
 }

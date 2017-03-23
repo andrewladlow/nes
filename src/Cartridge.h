@@ -11,9 +11,10 @@ public:
 
     void debug();
 
-    char *getPrgRom();
-    char *getChrRom();
-    char *getRam();
+    char *getprgRom();
+    int getprgRomBanks();
+    char *getchrRom();
+    char *getram();
 private:
     char header[16];
 

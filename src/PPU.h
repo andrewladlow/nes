@@ -2,12 +2,12 @@
 #define PPU_H_
 
 #include <iostream>
-#include "DisplayController.h"
+#include <array>
+#include <SFML/Graphics/Color.hpp>
 
 using namespace std;
 
 template <typename T, size_t M, size_t N> using array2d = array<array<T, N>, M>;
-
 
 struct colour {
 	uint8_t r;
@@ -20,27 +20,20 @@ public:
     PPU();
     ~PPU();
 
-    array2d<uint8_t, 256, 240> getpixelBuffer();
+    uint8_t readMemory(uint16_t address);
 
+    array2d<sf::Color, 256, 240> getpixelBuffer();
     void setppuCtrl(uint8_t value);
-
     void setppuMask(uint8_t value);
-
     uint8_t getppuStatus();
     void setppuStatus(uint8_t value);
-
     void setoamAddr(uint8_t value);
-
     uint8_t getoamData();
     void setoamData(uint8_t value);
-
     void setppuScroll(uint8_t value);
-
     void setppuAddr(uint8_t value);
-
     uint8_t getppuData();
     void setppuData(uint8_t value);
-
     bool getvBlank();
 
     void renderScanline(int scanline);
@@ -48,13 +41,13 @@ public:
     void updateScrollCounters();
 
     uint16_t getVramAddr();
-
     void incVramAddr(uint16_t value);
     void updateVramAddr(uint16_t value);
 
     void cycle();
 
     void incrementVerticalScrollCounters();
+
     void incrementHorizontalScrollCounters();
     void initPalette();
 private:
@@ -62,23 +55,17 @@ private:
     int currentScanline;
     int currentScanlineCycle;
 
-    struct colour palettes[5];
-    std::array<colour, 64> palette;
-    array2d<uint8_t, 256, 240> pixelBuffer;
+    array<sf::Color, 64> palette;
+    array2d<sf::Color, 256, 240> pixelBuffer;
 
     char vRam[4096];
     char sprRam[256];
 
     uint8_t vRamBuffer;
 
-    uint8_t ppuCtrl;
-    uint8_t ppuMask;
     uint8_t ppuStatus;
     uint8_t oamAddr;
     uint8_t oamData;
-    uint8_t ppuScroll;
-    uint8_t ppuAddr;
-    uint8_t ppuData;
 
     uint8_t regFV;
     uint8_t regFH;
@@ -114,10 +101,6 @@ private:
 
     // determine first or second write for PPUSCROLL and PPUADDR
     bool written;
-
-    uint8_t readMemory(uint16_t address);
-
-
 };
 
 #endif

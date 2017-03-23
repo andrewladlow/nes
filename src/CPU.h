@@ -10,7 +10,7 @@
 
 class CPU {
 public:
-    CPU(PPU *ppu, char *prgRom);
+    CPU(PPU *ppu, char *prgRom, int prgRomSize);
     ~CPU();
 
     void debug();
@@ -41,25 +41,31 @@ public:
 
     void NMI();
 
+    void setDebug(bool val);
+
 private:
     PPU *ppu;
 
     char *prgRom;
+    int prgRomBanks;
 
-    char cpuRam[2048];
-    char sRam[8192];
+    uint8_t cpuRam[2048];
+    uint8_t sRam[8192];
 
     uint16_t pc;
     uint8_t sp;
-    std::bitset<8> status; // have status as uint8 instead? modify each bit via shifting?
-    // bitset cleaner solution unless other limitations?
+    uint8_t status;
     uint8_t accumulator;
     uint8_t regX;
     uint8_t regY;
     uint8_t opcode;
     uint16_t operand;
 
-    bool getBit(unsigned char input, int n);
+    bool isDebug;
+
+    bool getBit(unsigned char input, int bit);
+    bool getStatusBit(int bit);
+    void setStatusBit(int bit, bool val);
 
     void storeMemory(uint16_t address, uint8_t value);
     uint8_t readMemory(uint16_t address);

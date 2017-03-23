@@ -2,16 +2,21 @@
 
 using namespace std;
 
-CPU::CPU(PPU *ppu, char *prgRom) {
+CPU::CPU(PPU *ppu, char *prgRom, int prgRomBanks) {
 	this->ppu = ppu;
 	this->prgRom = prgRom;
+	this->prgRomBanks = prgRomBanks;
 	cout << "New CPU created" << endl;
+	reset();
 }
 
 CPU::~CPU() {
 }
 
 void CPU::debug() {
+	if (!isDebug) {
+		isDebug = true;
+	}
 	// having to trick cout by prepending + to variables, due to use of uint8_t - interpreted as char?
 	//cout << "PC            A        X       Y       SP     Status" << endl;
 	//cout << hex << +pc << "          " << +accumulator << "       " << +regX << "       " << +regY << "       " << +sp << dec << "     " << status << endl;
@@ -20,7 +25,7 @@ void CPU::debug() {
 			" X:" << setw(2) << +regX <<
 			" Y:" << setw(2) << +regY <<
 			" SP:" << setw(2) << +sp << dec <<
-			" P:" << status << " ";
+			" P:" << bitset<8>(status) << " ";
 }
 
 void CPU::reset() {
@@ -30,23 +35,24 @@ void CPU::reset() {
 	//reset button. When a reset occurs the system jumps to the address located at $FFFC and
 	//$FFFD.
 	//pc = resolveAddress(0xFFFC);
-	//pc = 0xC000;
-	pc = 0x8000;
-	sp = 0xFF;
-	status.reset();
+	pc = 0xC000;
+	//pc = 0x8000;
+	sp = 0xFD;
+	status = 0;
 	accumulator = 0;
 	regX = 0;
 	regY = 0;
 	opcode = 0;
 	operand = 0;
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 8192; i++) {
 		cpuRam[i] = 0;
 	}
 
 	for (int i = 0; i < 8192; i++) {
 		sRam[i] = 0;
 	}
-	//debug();
+
+	isDebug = false;
 }
 
 void CPU::loadROM() {
@@ -94,7 +100,12 @@ uint8_t CPU::readMemory(uint16_t address) {
 	if (address >= 0x8000) { // PRG ROM starting at address 0x8000
 		//cout << "PRGROM: " << hex << address - 0x8000 << dec << " = " << hex << +prgRom[address - 0x8000] << dec << endl;
 		//cout << "TEST: " << prgRom[0] << endl;
-		return prgRom[address - 0x8000];
+		// TODO memory mapper support
+		if (prgRomBanks == 1) {
+			return prgRom[address - 0xc000];
+		} else {
+			return prgRom[address - 0x8000];
+		}
 	} else if (address >= 0x6000) { // SRAM TODO
 		cout << "SRAM" << endl;
 		return sRam[address - 0x6000];
@@ -141,19 +152,26 @@ uint8_t CPU::popStack() {
 void CPU::NMI() {
 	cout << "Debug: NMI occured" << endl;
 	// push pc and status regs onto stack
-	pushStack(pc & 0xFF00); // MSB first
-	pushStack(pc & 0x00FF);
-	pushStack((unsigned char) status.to_ulong());
+	pushStack(pc & 0x00FF); // MSB first
+	pushStack(pc & 0xFF00);
+	pushStack(status);
+	//cout << hex << +status << endl;
+	//SEI();
 	// load NMI val
 	pc = resolveAddress(0xFFFA);
+	//RTI();
 }
 
 void CPU::cycle() {
+
 	//cout << "CPU Cycle started" << endl;
-	debug();
 	opcode = readMemory(pc);
 	//cout << "Current opcode: 0x" << hex << +opcode << dec << endl;
-	cout << "$" << hex << pc << ":" << +opcode << " ";
+	if (isDebug) {
+		debug();
+		cout << "$" << hex << pc << ":" << +opcode << " ";
+	}
+
 	uint16_t temp = 0; // store memory locations
 
 	// variables used to display assembly in a more readable format
@@ -168,6 +186,7 @@ void CPU::cycle() {
     case 0x45: case 0xE6: case 0xA5: case 0xA6:
     case 0x46: case 0x05: case 0x26: case 0x66:
     case 0xE5: case 0x85: case 0x86: case 0x84:
+    case 0xA4:
         operand = readMemory(pc + 1);
         pc += 2;
         opCount = 1;
@@ -234,7 +253,7 @@ void CPU::cycle() {
     case 0x8A: case 0xCA: case 0xE8: case 0xA8:
     case 0x98: case 0x88: case 0xC8: case 0x9A:
     case 0xBA: case 0x48: case 0x68: case 0x08:
-    case 0x28:
+    case 0x28: case 0x60: case 0xEA: case 0x40:
     	pc++;
         // no operand
     	opCount = 0;
@@ -290,7 +309,7 @@ void CPU::cycle() {
     	opCount = 1;
         break;
     default:
-        cout << "Address mode: Unknown opcode: 0x" << hex << opcode << " at PC: 0x" << +pc << endl;
+        cout << "Address mode: Unknown opcode: 0x" << hex << +opcode << " at PC: 0x" << +pc << endl;
         break;
     }
 
@@ -539,33 +558,35 @@ void CPU::cycle() {
         break;
     }
 
-    cout << instrName << " ";
-    if (opCount == 4) {
-    	cout << temp; // TODO more elegant solution for this...
-    } else if (opCount == 3) {
-    	cout << hex << operand;
-    } else if (opCount == 2) {
-		cout << hex << operand << " = " << +readMemory(operand);
-	} else if (opCount == 1) {
-		cout << hex << +readMemory(operand);
-	}
-    cout << endl;
+    if (isDebug) {
+		cout << instrName << " ";
+		if (opCount == 4) {
+			cout << temp; // TODO more elegant solution for this...
+		} else if (opCount == 3) {
+			cout << hex << operand;
+		} else if (opCount == 2) {
+			cout << hex << operand << " = " << +readMemory(operand);
+		} else if (opCount == 1) {
+			cout << hex << +readMemory(operand);
+		}
+		cout << endl;
+    }
 }
 
 void CPU::ADC() {
 	uint16_t temp = readMemory(operand) + accumulator + getCarryFlag();
 	setCarryFlag(temp > 0xFF);
-	setZeroFlag(temp == 0);
-	// TODO test and fix this overflow calc
-	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + status[0]));
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp & 0xFF);
+	// overflow calc from http://nesdev.com/6502.txt
+	//setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + getBit(status,0)));
+	setNegativeFlag(temp);
 	accumulator = temp;
 }
 
 void CPU::AND() {
 	accumulator &= readMemory(operand);
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::ASL() {
@@ -577,8 +598,8 @@ void CPU::ASL() {
 	}
 	setCarryFlag(temp & 0x80);
 	temp <<= 1;
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	if (opcode != 0x0A) {
 		storeMemory(operand, temp);
 	} else {
@@ -639,12 +660,13 @@ void CPU::BPL() {
 
 void CPU::BRK() {
 	// push pc and status regs onto stack
-	pushStack(pc & 0xFF00); // MSB first
-	pushStack(pc & 0x00FF);
-	pushStack((unsigned char) status.to_ulong());
+	pushStack(pc & 0x00FF); // MSB first
+	pushStack(pc & 0xFF00);
+	setBreakFlag(1);
+	pushStack(status);
+	SEI();
 	// load IRQ val
 	pc = resolveAddress(0xFFFE);
-	setBreakFlag(1);
 }
 
 void CPU::BVC() {
@@ -678,67 +700,67 @@ void CPU::CLV() {
 void CPU::CMP() {
 	uint16_t temp = accumulator - readMemory(operand);
 	setCarryFlag(temp >= 0);
-	setZeroFlag(temp == 0);
+	setZeroFlag(temp);
 	// negative flag = result[7]
-	setNegativeFlag(temp & 0x80);
+	setNegativeFlag(temp);
 }
 
 void CPU::CPX() {
 	uint16_t temp = regX - readMemory(operand);
 	setCarryFlag(temp >= 0);
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 }
 
 void CPU::CPY() {
 	uint16_t temp = regY - readMemory(operand);
 	setCarryFlag(temp >= 0);
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 }
 
 void CPU::DEC() {
 	uint16_t temp = readMemory(operand) - 1;
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	storeMemory(operand, temp);
 }
 
 void CPU::DEX() {
 	regX--;
-	setZeroFlag(regX == 0);
-	setNegativeFlag(regX & 0x80);
+	setZeroFlag(regX);
+	setNegativeFlag(regX);
 }
 
 void CPU::DEY() {
 	regY--;
-	setZeroFlag(regY == 0);
-	setNegativeFlag(regY & 0x80);
+	setZeroFlag(regY);
+	setNegativeFlag(regY);
 }
 
 void CPU::EOR() {
 	accumulator ^= readMemory(operand);
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::INC() {
 	uint16_t temp = readMemory(operand) + 1;
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	storeMemory(operand, temp);
 }
 
 void CPU::INX() {
 	regX++;
-	setZeroFlag(regX == 0);
-	setNegativeFlag(regX & 0x80);
+	setZeroFlag(regX);
+	setNegativeFlag(regX);
 }
 
 void CPU::INY() {
 	regY++;
-	setZeroFlag(regY == 0);
-	setNegativeFlag(regY & 0x80);
+	setZeroFlag(regY);
+	setNegativeFlag(regY);
 }
 
 void CPU::JMP() {
@@ -748,28 +770,28 @@ void CPU::JMP() {
 
 void CPU::JSR() {
 	pc--;
-	pushStack(pc & 0xFF00);
-	pushStack(pc & 0x00FF);
+	pushStack(pc >> 8);
+	pushStack(pc);
 	pc = operand;
 }
 
 void CPU::LDA() {
 	accumulator = readMemory(operand);
-	setZeroFlag(accumulator == 0);
+	setZeroFlag(accumulator);
 	//cout << "TEST: " << +accumulator << " " << (accumulator & 0x80) << endl;
-	setNegativeFlag(accumulator & 0x80);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::LDX() {
 	regX = readMemory(operand);
-	setZeroFlag(regX == 0);
-	setNegativeFlag(regX & 0x80);
+	setZeroFlag(regX);
+	setNegativeFlag(regX);
 }
 
 void CPU::LDY() {
 	regY = readMemory(operand);
-	setZeroFlag(regY == 0);
-	setNegativeFlag(regY & 0x80);
+	setZeroFlag(regY);
+	setNegativeFlag(regY);
 }
 
 void CPU::LSR() {
@@ -781,8 +803,8 @@ void CPU::LSR() {
 	}
 	setCarryFlag(temp & 0x01);
 	temp >>= 1;
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	if (opcode != 0x4A) {
 		storeMemory(operand, temp);
 	} else {
@@ -802,8 +824,8 @@ void CPU::NOP() {
 
 void CPU::ORA() {
 	accumulator |= readMemory(operand);
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::PHA() {
@@ -811,20 +833,21 @@ void CPU::PHA() {
 }
 
 void CPU::PHP() {
-	pushStack((unsigned char) status.to_ulong());
+	pushStack(status);
 }
 
 void CPU::PLA() {
 	accumulator = popStack();
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::PLP() {
 	// TODO test this function
-	string temp = to_string(popStack());
+	uint8_t temp = popStack();
 	for (int i = 0; i < 7; i++) {
-		status[i] = temp[i];
+		//status[i] = temp[i];
+		setStatusBit(i, getBit(temp, i));
 	}
 }
 
@@ -841,8 +864,8 @@ void CPU::ROL() {
 	temp <<= 1;
 	temp |= carry;
 
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	if (opcode != 0x2A) {
 		storeMemory(operand, temp);
 	} else {
@@ -870,8 +893,8 @@ void CPU::ROR() {
 	temp >>= 1;
 	temp |= carry;
 
-	setZeroFlag(temp == 0);
-	setNegativeFlag(temp & 0x80);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
 	if (opcode != 0x6A) {
 		storeMemory(operand, temp);
 	} else {
@@ -888,23 +911,23 @@ void CPU::RTI() {
 	status = popStack();
 	//pc = stack[sp - 1] << 8 | stack[sp - 2];
 	pc = popStack();
-	pc |= (uint16_t) popStack() << 8;
+	pc |= (uint16_t)popStack() << 8;
 	// TODO test, possibly incorrect
 }
 
 void CPU::RTS() {
 	pc = popStack();
-	pc |= (uint16_t) popStack() << 8;
+	pc |= (uint16_t)popStack() << 8;
 	pc++;
 }
 
 void CPU::SBC() {
 	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
 	setCarryFlag(temp > 0xFF);
-	setZeroFlag(temp == 0);
+	setZeroFlag(temp);
 	// TODO test and fix this overflow calc
-	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + status[0]));
-	setNegativeFlag(temp & 0x80);
+	setOverflowFlag((getBit(temp, 6) + getBit(temp, 7)) ^ (getBit(temp, 7) + getBit(status,0)));
+	setNegativeFlag(temp);
 	accumulator = temp;
 
 //	uint16_t temp = accumulator - readMemory(operand) - (1 - getCarryFlag());
@@ -945,27 +968,27 @@ void CPU::STY() {
 
 void CPU::TAX() {
 	regX = accumulator;
-	setZeroFlag(regX == 0);
-	setNegativeFlag(regX & 0x80);
+	setZeroFlag(regX);
+	setNegativeFlag(regX);
 }
 
 void CPU::TAY() {
 	regY = accumulator;
-	setZeroFlag(regY == 0);
-	setNegativeFlag(regY & 0x80);
+	setZeroFlag(regY);
+	setNegativeFlag(regY);
 }
 
 void CPU::TSX() {
 	regX = sp;
 	//regX = popStack();
-	setZeroFlag(regX == 0);
-	setNegativeFlag(regX & 0x80);
+	setZeroFlag(regX);
+	setNegativeFlag(regX);
 }
 
 void CPU::TXA() {
 	accumulator = regX;
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 void CPU::TXS() {
@@ -975,20 +998,20 @@ void CPU::TXS() {
 
 void CPU::TYA() {
 	accumulator = regY;
-	setZeroFlag(accumulator == 0);
-	setNegativeFlag(accumulator & 0x80);
+	setZeroFlag(accumulator);
+	setNegativeFlag(accumulator);
 }
 
 bool CPU::getNegativeFlag() {
-	return status[7];
+	return getBit(status, 7);
 }
 
 void CPU::setNegativeFlag(bool input) {
-	status[7] = input;
+	setStatusBit(7, input & 0x80);
 }
 
 bool CPU::getOverflowFlag() {
-	return status[6];
+	return getBit(status, 6);
 }
 
 //void CPU::setOverflowFlag(char input) {
@@ -996,49 +1019,57 @@ bool CPU::getOverflowFlag() {
 //}
 
 void CPU::setOverflowFlag(bool input) {
-	status[6] = input;
+	setStatusBit(6, input);
 }
 
 bool CPU::getBreakFlag() {
-	return status[4];
+	return getBit(status, 4);
 }
 
 void CPU::setBreakFlag(bool input) {
-	status[4] = input;
+	setStatusBit(4, input);
 }
 
 bool CPU::getDecimalModeFlag() {
-	return status[3];
+	return getBit(status, 3);
 }
 
 void CPU::setDecimalModeFlag(bool input) {
-	status[3] = input;
+	setStatusBit(3, input);
 }
 
 bool CPU::getInterruptDisableFlag() {
-	return status[2];
+	return getBit(status, 2);
 }
 
 void CPU::setInterruptDisableFlag(bool input) {
-	status[2] = input;
+	setStatusBit(2, input);
 }
 
 bool CPU::getZeroFlag() {
-	return status[1];
+	return getBit(status, 1);
 }
 
 void CPU::setZeroFlag(bool input) {
-	status[1] = input;
+	setStatusBit(1, !input);
 }
 
 bool CPU::getCarryFlag() {
-	return status[0];
+	return getBit(status, 0);
 }
 
 void CPU::setCarryFlag(bool input) {
-	status[0] = input;
+	setStatusBit(0, input);
 }
 
-bool CPU::getBit(unsigned char input, int n) {
-	return (input >> n) & 1;
+bool CPU::getBit(unsigned char input, int bit) {
+	return (input >> bit) & 1;
+}
+
+void CPU::setStatusBit(int bit, bool val) {
+	status ^= (-val ^ status) & (1 << bit);
+}
+
+void CPU::setDebug(bool val) {
+	isDebug = val;
 }

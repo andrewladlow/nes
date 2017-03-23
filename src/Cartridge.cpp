@@ -40,15 +40,19 @@ Cartridge::Cartridge(string filePath) {
     }
 }
 
-char *Cartridge::getPrgRom() {
+char *Cartridge::getprgRom() {
     return prgRom;
 }
 
-char *Cartridge::getChrRom() {
+int Cartridge::getprgRomBanks() {
+	return (int) header[4];
+}
+
+char *Cartridge::getchrRom() {
     return chrRom;
 }
 
-char *Cartridge::getRam() {
+char *Cartridge::getram() {
     return ram;
 }
 
