@@ -103,6 +103,7 @@ private:
     void DEC();
     void DEX();
     void DEY();
+    void DOP();
 
     void EOR();
 
@@ -113,6 +114,7 @@ private:
     void JMP();
     void JSR();
 
+    void LAX();
     void LDA();
     void LDX();
     void LDY();
@@ -142,6 +144,7 @@ private:
 
     void TAX();
     void TAY();
+    void TOP();
     void TSX();
     void TXA();
     void TXS();

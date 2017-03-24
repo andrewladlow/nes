@@ -186,7 +186,8 @@ void CPU::cycle() {
     case 0x45: case 0xE6: case 0xA5: case 0xA6:
     case 0x46: case 0x05: case 0x26: case 0x66:
     case 0xE5: case 0x85: case 0x86: case 0x84:
-    case 0xA4:
+    case 0xA4: case 0x04: case 0x44: case 0x64:
+    case 0xA7:
         operand = readMemory(pc + 1);
         pc += 2;
         opCount = 1;
@@ -196,12 +197,14 @@ void CPU::cycle() {
     case 0xD6: case 0x55: case 0xF6: case 0xB5:
     case 0xB4: case 0x56: case 0x15: case 0x36:
     case 0x76: case 0xF5: case 0x95: case 0x94:
+    case 0x14: case 0x34: case 0x54: case 0x74:
+    case 0xD4: case 0xF4:
         operand = (readMemory(pc + 1) + regX) & 0xFF; // wraparound to remain in zero page
         pc += 2;
         opCount = 1;
         break;
     // Zero page, Y
-    case 0xB6: case 0x96:
+    case 0xB6: case 0x96: case 0xB7:
         operand = (readMemory(pc + 1) + regY) & 0xFF;
         pc += 2;
         opCount = 1;
@@ -213,6 +216,7 @@ void CPU::cycle() {
     case 0x20: case 0xAD: case 0xAE: case 0xAC:
     case 0x4E: case 0x0D: case 0x2E: case 0x6E:
     case 0xED: case 0x8D: case 0x8E: case 0x8C:
+    case 0x0C: case 0xAF:
         operand = resolveAddress(pc + 1);
         pc += 3;
         // TODO revise fix here
@@ -226,7 +230,8 @@ void CPU::cycle() {
     case 0x7D: case 0x3D: case 0xDD: case 0xDE:
     case 0x5D: case 0xFE: case 0xBD: case 0xBC:
     case 0x1D: case 0x3E: case 0x7E: case 0xFD:
-    case 0x9D:
+    case 0x9D: case 0x1C: case 0x3C: case 0x5C:
+    case 0x7C: case 0xDC: case 0xFC:
         operand = resolveAddress(pc + 1) + regX;
         pc += 3;
         opCount = 2;
@@ -234,7 +239,7 @@ void CPU::cycle() {
     // Absolute, Y
     case 0x79: case 0x39: case 0xD9: case 0x59:
     case 0xB9: case 0xBE: case 0x5E: case 0x19:
-    case 0xF9: case 0x99:
+    case 0xF9: case 0x99: case 0xBf:
         operand = resolveAddress(pc + 1) + regY;
         pc += 3;
         opCount = 2;
@@ -260,6 +265,9 @@ void CPU::cycle() {
     case 0x98: case 0x88: case 0xC8: case 0x9A:
     case 0xBA: case 0x48: case 0x68: case 0x08:
     case 0x28: case 0x60: case 0xEA: case 0x40:
+    case 0x1A: case 0x3A: case 0x5A: case 0x7A:
+    case 0xDA: case 0xFA:
+
     	pc++;
         // no operand
     	opCount = 0;
@@ -273,7 +281,8 @@ void CPU::cycle() {
     // Immediate
     case 0x69: case 0x29: case 0xC9: case 0xE0:
     case 0xC0: case 0x49: case 0xA9: case 0xA2:
-    case 0xA0: case 0x09: case 0xE9:
+    case 0xA0: case 0x09: case 0xE9: case 0x80:
+    case 0x82: case 0x89: case 0xC2: case 0xE2:
         operand = pc + 1;
         pc += 2;
     	opCount = 1;
@@ -289,6 +298,7 @@ void CPU::cycle() {
     // Indirect, X (Pre-indexed)
     case 0x61: case 0x21: case 0xC1: case 0x41:
     case 0xA1: case 0x01: case 0xE1: case 0x81:
+    case 0xA3:
     	temp = readMemory(pc + 1);
     	temp = (temp + regX) & 0xFF;
     	operand = resolveAddress(temp);
@@ -304,6 +314,7 @@ void CPU::cycle() {
     // Indirect, Y (Post-indexed)
     case 0x71: case 0x31: case 0xD1: case 0x51:
     case 0xB1: case 0x11: case 0xF1: case 0x91:
+    case 0xB3:
     	temp = readMemory(pc + 1);
     	temp = resolveAddress(temp);
     	operand = temp + regY; // no wrap around here as we're adding Y to an address that isn't limited to zero page
@@ -417,6 +428,13 @@ void CPU::cycle() {
     	instrName = "DEY";
         DEY();
         break;
+    case 0x04: case 0x14: case 0x34: case 0x44:
+    case 0x54: case 0x64: case 0x74: case 0x80:
+    case 0x82: case 0x89: case 0xC2: case 0xD4:
+    case 0xE2: case 0xF4:
+    	instrName = "*NOP";
+    	DOP();
+    	break;
     case 0x49: case 0x45: case 0x55: case 0x4D:
     case 0x5D: case 0x59: case 0x41: case 0x51:
     	instrName = "EOR";
@@ -442,6 +460,11 @@ void CPU::cycle() {
     	instrName = "JSR";
         JSR();
         break;
+    case 0xA7: case 0xB7: case 0xAF: case 0xBF:
+    case 0xA3: case 0xB3:
+    	instrName = "*LAX";
+    	LAX();
+    	break;
     case 0xA9: case 0xA5: case 0xB5: case 0xAD:
     case 0xBD: case 0xB9: case 0xA1: case 0xB1:
     	instrName = "LDA";
@@ -462,7 +485,8 @@ void CPU::cycle() {
     	instrName = "LSR";
         LSR();
         break;
-    case 0xEA:
+    case 0xEA: case 0x1A: case 0x3A: case 0x5A:
+    case 0x7A: case 0xDA: case 0xFA:
     	instrName = "NOP";
         NOP();
         break;
@@ -527,7 +551,7 @@ void CPU::cycle() {
     	instrName = "STA";
         STA();
         break;
-    case 0x86: case 0x8E:
+    case 0x86: case 0x96: case 0x8E:
     	instrName = "STX";
         STX();
         break;
@@ -543,6 +567,11 @@ void CPU::cycle() {
     	instrName = "TAY";
         TAY();
         break;
+    case 0x0C: case 0x1C: case 0x3C: case 0x5C:
+    case 0x7C: case 0xDC: case 0xFC:
+    	instrName = "*NOP";
+    	TOP();
+    	break;
     case 0xBA:
     	instrName = "TSX";
         TSX();
@@ -746,6 +775,10 @@ void CPU::DEY() {
 	setNegativeFlag(regY);
 }
 
+void CPU::DOP() {
+	NOP();
+}
+
 void CPU::EOR() {
 	accumulator ^= readMemory(operand);
 	setZeroFlag(accumulator);
@@ -781,6 +814,14 @@ void CPU::JSR() {
 	pushStack(pc >> 8);
 	pushStack(pc);
 	pc = operand;
+}
+
+void CPU::LAX() {
+	uint8_t temp = readMemory(operand);
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
+	accumulator = temp;
+	regX = temp;
 }
 
 void CPU::LDA() {
@@ -979,6 +1020,10 @@ void CPU::TAY() {
 	regY = accumulator;
 	setZeroFlag(regY);
 	setNegativeFlag(regY);
+}
+
+void CPU::TOP() {
+	NOP();
 }
 
 void CPU::TSX() {
