@@ -216,7 +216,7 @@ void CPU::cycle() {
         operand = resolveAddress(pc + 1);
         pc += 3;
         // TODO revise fix here
-        if (opcode == 0x4C) {
+        if (opcode == 0x4C || opcode == 0x20) {
         	opCount = 3;
         } else {
         	opCount = 2;
@@ -243,7 +243,13 @@ void CPU::cycle() {
     case 0x6C: {
         temp = resolveAddress(pc + 1);
         // pc set to data in memory address pointed to by operands
-        operand = resolveAddress(temp);
+        // handle page boundary (if low byte is FF, high byte is not increased)
+        if (temp & 0x00FF == 0xFF) {
+        	operand = ((uint16_t)readMemory(temp & 0xFF00) << 8) + readMemory(temp);
+        }
+        else {
+            operand = resolveAddress(temp);
+        }
         opCount = 1;
         break;
     }
@@ -845,12 +851,7 @@ void CPU::PLA() {
 }
 
 void CPU::PLP() {
-	// TODO test this function
-	uint8_t temp = popStack();
-	for (int i = 0; i < 7; i++) {
-		//status[i] = temp[i];
-		setStatusBit(i, getBit(temp, i));
-	}
+	status = popStack();
 }
 
 void CPU::ROL() {

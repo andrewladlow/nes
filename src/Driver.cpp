@@ -14,45 +14,16 @@ int main(int argc, char * argv[]) {
     PPU *ppu = new PPU();
     CPU cpu(ppu, cartridge.getprgRom(), cartridge.getprgRomBanks());
 
-
- 	//DisplayController controller(window);
-
-// 	while (true) {
-//		while (window->isOpen()) {
-//			sf::Event event;
-//			while (window->pollEvent(event)) {
-//				if (event.type == sf::Event::Closed) {
-//					window->close();
-//					return 0;
-//				}
-//			}
-//			for (int i = 0; i <= 261; i++) {
-//				int clock = 0;
-//				while (clock <= 113) {
-//					cpu.cycle();
-//					clock +=3;
-//				}
-//				ppu->renderScanline(i);
-//				if (ppu->getvBlank()) {
-//					cpu.NMI();
-//				}
-//				// TODO instead of 261 loop, have ppu run 3x for every 1x cpu?
-//			}
-//
-//			window->clear(sf::Color::Black);
-//			window->draw(sf::CircleShape(20.0F, 60));
-//			window->display();
-//		}
-//	}
-
  	cpu.setDebug(1);
 
- 	//while(true) {
- 	for (int i = 0; i < 3; i++) {
+ 	while(true) {
+ 	//for (int i = 0; i < 3; i++) {
  		cpu.cycle();
  		ppu->cycle();
  	}
 
+
+ 	//DisplayController controller(window);
 
 //    sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(256, 240), "NES Emulator");
 //    sf::Texture texture;
@@ -104,10 +75,6 @@ int main(int argc, char * argv[]) {
 //			window->display();
 //		}
 //	}
-
-}
-
-void emulate() {
 
 }
 
