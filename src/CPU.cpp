@@ -6,7 +6,7 @@ CPU::CPU(PPU *ppu, char *prgRom, int prgRomBanks) {
 	this->ppu = ppu;
 	this->prgRom = prgRom;
 	this->prgRomBanks = prgRomBanks;
-	cout << "New CPU created" << endl;
+	//cout << "New CPU created" << endl;
 	reset();
 }
 
@@ -17,9 +17,6 @@ void CPU::debug() {
 	if (!isDebug) {
 		isDebug = true;
 	}
-	// having to trick cout by prepending + to variables, due to use of uint8_t - interpreted as char?
-	//cout << "PC            A        X       Y       SP     Status" << endl;
-	//cout << hex << +pc << "          " << +accumulator << "       " << +regX << "       " << +regY << "       " << +sp << dec << "     " << status << endl;
 	cout << "PC:" << left << setw(4) << hex << +pc <<
 			" A:" << setw(2) << +accumulator <<
 			" X:" << setw(2) << +regX <<
@@ -29,8 +26,7 @@ void CPU::debug() {
 }
 
 void CPU::reset() {
-	cout << "CPU reset" << endl;
-	//pc = 0;
+	//cout << "CPU reset" << endl;
 	//Reset interrupts are triggered when the system first starts and when the user presses the
 	//reset button. When a reset occurs the system jumps to the address located at $FFFC and
 	//$FFFD.
@@ -53,10 +49,6 @@ void CPU::reset() {
 	}
 
 	isDebug = false;
-}
-
-void CPU::loadROM() {
-
 }
 
 uint16_t CPU::resolveAddress(uint16_t address) {
@@ -112,15 +104,8 @@ uint8_t CPU::readMemory(uint16_t address) {
 	} else if (address >= 0x4020) { // Expansion ROM TODO
 		cout << "Expansion ROM" << endl;
 		return 1;
-	} else if (address >= 0x2000) { // PPU TODO
+	} else if (address >= 0x2000) {
 		switch (address & 0x007) { // PPU registers mirrored every 8 bytes
-		// control registers write only?
-//		case 0:
-//			return ppu->getControlReg1();
-//			break;
-//		case 1:
-//			return ppu->getControlReg2();
-//			break;
 		case 2:
 			return ppu->getppuStatus();
 			break;
@@ -187,7 +172,8 @@ void CPU::cycle() {
     case 0x46: case 0x05: case 0x26: case 0x66:
     case 0xE5: case 0x85: case 0x86: case 0x84:
     case 0xA4: case 0x04: case 0x44: case 0x64:
-    case 0xA7:
+    case 0xA7: case 0x87: case 0xC7: case 0xE7:
+    case 0x07: case 0x27: case 0x47: case 0x67:
         operand = readMemory(pc + 1);
         pc += 2;
         opCount = 1;
@@ -198,13 +184,14 @@ void CPU::cycle() {
     case 0xB4: case 0x56: case 0x15: case 0x36:
     case 0x76: case 0xF5: case 0x95: case 0x94:
     case 0x14: case 0x34: case 0x54: case 0x74:
-    case 0xD4: case 0xF4:
+    case 0xD4: case 0xF4: case 0xD7: case 0xF7:
+    case 0x17: case 0x37: case 0x57: case 0x77:
         operand = (readMemory(pc + 1) + regX) & 0xFF; // wraparound to remain in zero page
         pc += 2;
         opCount = 1;
         break;
     // Zero page, Y
-    case 0xB6: case 0x96: case 0xB7:
+    case 0xB6: case 0x96: case 0xB7: case 0x97:
         operand = (readMemory(pc + 1) + regY) & 0xFF;
         pc += 2;
         opCount = 1;
@@ -216,7 +203,9 @@ void CPU::cycle() {
     case 0x20: case 0xAD: case 0xAE: case 0xAC:
     case 0x4E: case 0x0D: case 0x2E: case 0x6E:
     case 0xED: case 0x8D: case 0x8E: case 0x8C:
-    case 0x0C: case 0xAF:
+    case 0x0C: case 0xAF: case 0x8F: case 0xCF:
+    case 0xEF: case 0x0F: case 0x2F: case 0x4F:
+    case 0x6F:
         operand = resolveAddress(pc + 1);
         pc += 3;
         // TODO revise fix here
@@ -231,7 +220,9 @@ void CPU::cycle() {
     case 0x5D: case 0xFE: case 0xBD: case 0xBC:
     case 0x1D: case 0x3E: case 0x7E: case 0xFD:
     case 0x9D: case 0x1C: case 0x3C: case 0x5C:
-    case 0x7C: case 0xDC: case 0xFC:
+    case 0x7C: case 0xDC: case 0xFC: case 0xDF:
+    case 0xFF: case 0x1F: case 0x3F: case 0x5F:
+    case 0x7F:
         operand = resolveAddress(pc + 1) + regX;
         pc += 3;
         opCount = 2;
@@ -239,7 +230,9 @@ void CPU::cycle() {
     // Absolute, Y
     case 0x79: case 0x39: case 0xD9: case 0x59:
     case 0xB9: case 0xBE: case 0x5E: case 0x19:
-    case 0xF9: case 0x99: case 0xBf:
+    case 0xF9: case 0x99: case 0xBF: case 0xDB:
+    case 0xFB: case 0x1B: case 0x3B: case 0x5B:
+    case 0x7B:
         operand = resolveAddress(pc + 1) + regY;
         pc += 3;
         opCount = 2;
@@ -283,6 +276,7 @@ void CPU::cycle() {
     case 0xC0: case 0x49: case 0xA9: case 0xA2:
     case 0xA0: case 0x09: case 0xE9: case 0x80:
     case 0x82: case 0x89: case 0xC2: case 0xE2:
+    case 0xEB:
         operand = pc + 1;
         pc += 2;
     	opCount = 1;
@@ -298,7 +292,8 @@ void CPU::cycle() {
     // Indirect, X (Pre-indexed)
     case 0x61: case 0x21: case 0xC1: case 0x41:
     case 0xA1: case 0x01: case 0xE1: case 0x81:
-    case 0xA3:
+    case 0xA3: case 0x83: case 0xC3: case 0xE3:
+    case 0x03: case 0x23: case 0x43: case 0x63:
     	temp = readMemory(pc + 1);
     	temp = (temp + regX) & 0xFF;
     	operand = resolveAddress(temp);
@@ -314,7 +309,8 @@ void CPU::cycle() {
     // Indirect, Y (Post-indexed)
     case 0x71: case 0x31: case 0xD1: case 0x51:
     case 0xB1: case 0x11: case 0xF1: case 0x91:
-    case 0xB3:
+    case 0xB3: case 0xD3: case 0xF3: case 0x13:
+    case 0x33: case 0x53: case 0x73:
     	temp = readMemory(pc + 1);
     	temp = resolveAddress(temp);
     	operand = temp + regY; // no wrap around here as we're adding Y to an address that isn't limited to zero page
@@ -332,6 +328,10 @@ void CPU::cycle() {
 
     // Select instruction
     switch (opcode) {
+    case 0x87: case 0x97: case 0x83: case 0x8F:
+    	instrName="*AAX";
+    	AAX();
+    	break;
     case 0x69: case 0x65: case 0x75: case 0x6D:
     case 0x7D: case 0x79: case 0x61: case 0x71:
     	instrName = "ADC";
@@ -416,6 +416,11 @@ void CPU::cycle() {
     	instrName = "CPY";
     	CPY();
         break;
+    case 0xC7: case 0xD7: case 0xCF: case 0xDF:
+    case 0xDB: case 0xC3: case 0xD3:
+    	instrName = "*DCP";
+    	DCP();
+    	break;
     case 0xC6: case 0xD6: case 0xCE: case 0xDE:
     	instrName = "DEC";
         DEC();
@@ -452,6 +457,11 @@ void CPU::cycle() {
     	instrName = "INY";
         INY();
         break;
+    case 0xE7: case 0xF7: case 0xEF: case 0xFF:
+    case 0xFB: case 0xE3: case 0xF3:
+    	instrName = "*ISC";
+    	ISC();
+    	break;
     case 0x6C: case 0x4C:
     	instrName = "JMP";
         JMP();
@@ -511,6 +521,11 @@ void CPU::cycle() {
     	instrName = "PLP";
         PLP();
         break;
+    case 0x27: case 0x37: case 0x2F: case 0x3F:
+    case 0x3B: case 0x23: case 0x33:
+    	instrName = "*RLA";
+    	RLA();
+    	break;
     case 0x2A: case 0x26: case 0x36: case 0x2E:
     case 0x3E:
     	instrName = "ROL";
@@ -521,6 +536,11 @@ void CPU::cycle() {
     	instrName = "ROR";
         ROR();
         break;
+    case 0x67: case 0x77: case 0x6F: case 0x7F:
+    case 0x7B: case 0x63: case 0x73:
+    	instrName = "*RRA";
+    	RRA();
+    	break;
     case 0x40:
     	instrName = "RTI";
         RTI();
@@ -531,6 +551,7 @@ void CPU::cycle() {
         break;
     case 0xE9: case 0xE5: case 0xF5: case 0xED:
     case 0xFD: case 0xF9: case 0xE1: case 0xF1:
+    case 0xEB:
     	instrName = "SBC";
         SBC();
         break;
@@ -546,6 +567,16 @@ void CPU::cycle() {
     	instrName = "SEI";
         SEI();
         break;
+    case 0x07: case 0x17: case 0x0F: case 0x1F:
+    case 0x1B: case 0x03: case 0x13:
+    	instrName = "*SLO";
+    	SLO();
+    	break;
+    case 0x47: case 0x57: case 0x4F: case 0x5F:
+    case 0x5B: case 0x43: case 0x53:
+    	instrName = "*SRE";
+    	SRE();
+    	break;
     case 0x85: case 0x95: case 0x8D: case 0x9D:
     case 0x99: case 0x81: case 0x91:
     	instrName = "STA";
@@ -606,6 +637,13 @@ void CPU::cycle() {
 		}
 		cout << endl;
     }
+}
+
+void CPU::AAX() {
+	uint8_t temp = accumulator & regX;
+	setZeroFlag(temp);
+	setNegativeFlag(temp);
+	storeMemory(operand, temp);
 }
 
 void CPU::ADC() {
@@ -756,8 +794,13 @@ void CPU::CPY() {
 	setNegativeFlag(temp);
 }
 
+void CPU::DCP() {
+	DEC();
+	CMP();
+}
+
 void CPU::DEC() {
-	uint16_t temp = readMemory(operand) - 1;
+	uint8_t temp = readMemory(operand) - 1;
 	setZeroFlag(temp);
 	setNegativeFlag(temp);
 	storeMemory(operand, temp);
@@ -802,6 +845,11 @@ void CPU::INY() {
 	regY++;
 	setZeroFlag(regY);
 	setNegativeFlag(regY);
+}
+
+void CPU::ISC() {
+	INC();
+	SBC();
 }
 
 void CPU::JMP() {
@@ -895,6 +943,11 @@ void CPU::PLP() {
 	status = popStack();
 }
 
+void CPU::RLA() {
+	ROL();
+	AND();
+}
+
 void CPU::ROL() {
 	uint8_t temp;
 	if (opcode != 0x2A) {
@@ -952,6 +1005,11 @@ void CPU::ROR() {
 //	accumulator = (result & 0xFF);
 }
 
+void CPU::RRA() {
+	ROR();
+	ADC();
+}
+
 void CPU::RTI() {
 	status = popStack();
 	//pc = stack[sp - 1] << 8 | stack[sp - 2];
@@ -993,6 +1051,16 @@ void CPU::SED() {
 
 void CPU::SEI() {
 	setInterruptDisableFlag(1);
+}
+
+void CPU::SLO() {
+	ASL();
+	ORA();
+}
+
+void CPU::SRE() {
+	LSR();
+	EOR();
 }
 
 void CPU::STA() {

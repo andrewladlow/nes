@@ -15,7 +15,6 @@ public:
 
     void debug();
     void reset();
-    void loadROM();
     void cycle();
 
     bool getNegativeFlag();
@@ -77,6 +76,7 @@ private:
 
     uint16_t resolveAddress(uint16_t address);
 
+    void AAX();
     void ADC();
     void AND();
     void ASL();
@@ -100,6 +100,7 @@ private:
     void CPX();
     void CPY();
 
+    void DCP();
     void DEC();
     void DEX();
     void DEY();
@@ -110,6 +111,7 @@ private:
     void INC();
     void INX();
     void INY();
+    void ISC();
 
     void JMP();
     void JSR();
@@ -129,8 +131,10 @@ private:
     void PLA();
     void PLP();
 
+    void RLA();
     void ROL();
     void ROR();
+    void RRA();
     void RTI();
     void RTS();
 
@@ -138,6 +142,8 @@ private:
     void SEC();
     void SED();
     void SEI();
+    void SLO();
+    void SRE();
     void STA();
     void STX();
     void STY();

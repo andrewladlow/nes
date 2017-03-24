@@ -3,7 +3,7 @@
 using namespace std;
 
 PPU::PPU() {
-    cout << "New PPU created" << endl;
+    //cout << "New PPU created" << endl;
 
     //this->display = display;
 
@@ -114,7 +114,7 @@ void PPU::cycle() {
 				// TODO screen width
 				while (pixelX < 256) {
 					uint16_t vRamAddr = getVramAddr();
-					cout << "vram: " << hex << +vRamAddr << endl;
+					//cout << "vram: " << hex << +vRamAddr << endl;
 
 					uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
 					uint8_t tile = readMemory(nameTableAddr);
