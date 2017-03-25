@@ -18,25 +18,25 @@ public:
     void cycle();
 
     bool getNegativeFlag();
-    void setNegativeFlag(bool input);
+    void setNegativeFlag(uint8_t input);
 
     bool getOverflowFlag();
-    void setOverflowFlag(bool input);
+    void setOverflowFlag(uint8_t input);
 
     bool getBreakFlag();
-    void setBreakFlag(bool input);
+    void setBreakFlag(uint8_t input);
 
     bool getDecimalModeFlag();
-    void setDecimalModeFlag(bool input);
+    void setDecimalModeFlag(uint8_t input);
 
     bool getInterruptDisableFlag();
-    void setInterruptDisableFlag(bool input);
+    void setInterruptDisableFlag(uint8_t input);
 
     bool getZeroFlag();
-    void setZeroFlag(bool input);
+    void setZeroFlag(uint8_t input);
 
     bool getCarryFlag();
-    void setCarryFlag(bool input);
+    void setCarryFlag(uint8_t input);
 
     void NMI();
 

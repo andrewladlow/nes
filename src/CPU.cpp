@@ -22,7 +22,7 @@ void CPU::debug() {
 			" X:" << setw(2) << +regX <<
 			" Y:" << setw(2) << +regY <<
 			" SP:" << setw(2) << +sp << dec <<
-			" P:" << bitset<8>(status) << " ";
+			" P:" << bitset<8>(status) << " " << "(" << hex << +status << ") ";
 }
 
 void CPU::reset() {
@@ -34,7 +34,7 @@ void CPU::reset() {
 	pc = 0xC000;
 	//pc = 0x8000;
 	sp = 0xFD;
-	status = 0;
+	status = 0x24;
 	accumulator = 0;
 	regX = 0;
 	regY = 0;
@@ -297,12 +297,6 @@ void CPU::cycle() {
     	temp = readMemory(pc + 1);
     	temp = (temp + regX) & 0xFF;
     	operand = resolveAddress(temp);
-
-    	//temp = resolveAddress(pc + 1) + regX;
-    	//operand = resolveAddress(temp);
-
-        //temp = pc + 1 + regX;
-        //operand = readMemory(temp + 1 << 8 | temp);
         pc += 2;
     	opCount = 1;
         break;
@@ -312,12 +306,12 @@ void CPU::cycle() {
     case 0xB3: case 0xD3: case 0xF3: case 0x13:
     case 0x33: case 0x53: case 0x73:
     	temp = readMemory(pc + 1);
-    	temp = resolveAddress(temp);
-    	operand = temp + regY; // no wrap around here as we're adding Y to an address that isn't limited to zero page
-
-        //temp = pc + 1;
-        //operand = memory[memory[(memory[temp + 1] << 8 | memory[temp]) + regY]];
-        //operand = readMemory((temp + 1 << 8 | temp) + regY);
+    	if (temp == 0xFF) {
+    		temp = 	((uint16_t)readMemory(0x0000) << 8) + readMemory(0x00FF);
+    	} else {
+    		temp = resolveAddress(temp);
+    	}
+    	operand = temp + regY;
         pc += 2;
     	opCount = 1;
         break;
@@ -1122,7 +1116,7 @@ bool CPU::getNegativeFlag() {
 	return getBit(status, 7);
 }
 
-void CPU::setNegativeFlag(bool input) {
+void CPU::setNegativeFlag(uint8_t input) {
 	setStatusBit(7, input & 0x80);
 }
 
@@ -1134,7 +1128,7 @@ bool CPU::getOverflowFlag() {
 //    status[6] = (getBit(input, 6) + getBit(input, 7)) ^ (getBit(input, 7) + status[0]);
 //}
 
-void CPU::setOverflowFlag(bool input) {
+void CPU::setOverflowFlag(uint8_t input) {
 	setStatusBit(6, input);
 }
 
@@ -1142,7 +1136,7 @@ bool CPU::getBreakFlag() {
 	return getBit(status, 4);
 }
 
-void CPU::setBreakFlag(bool input) {
+void CPU::setBreakFlag(uint8_t input) {
 	setStatusBit(4, input);
 }
 
@@ -1150,7 +1144,7 @@ bool CPU::getDecimalModeFlag() {
 	return getBit(status, 3);
 }
 
-void CPU::setDecimalModeFlag(bool input) {
+void CPU::setDecimalModeFlag(uint8_t input) {
 	setStatusBit(3, input);
 }
 
@@ -1158,7 +1152,7 @@ bool CPU::getInterruptDisableFlag() {
 	return getBit(status, 2);
 }
 
-void CPU::setInterruptDisableFlag(bool input) {
+void CPU::setInterruptDisableFlag(uint8_t input) {
 	setStatusBit(2, input);
 }
 
@@ -1166,7 +1160,7 @@ bool CPU::getZeroFlag() {
 	return getBit(status, 1);
 }
 
-void CPU::setZeroFlag(bool input) {
+void CPU::setZeroFlag(uint8_t input) {
 	setStatusBit(1, !input);
 }
 
@@ -1174,7 +1168,7 @@ bool CPU::getCarryFlag() {
 	return getBit(status, 0);
 }
 
-void CPU::setCarryFlag(bool input) {
+void CPU::setCarryFlag(uint8_t input) {
 	setStatusBit(0, input);
 }
 
