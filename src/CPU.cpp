@@ -197,7 +197,7 @@ void CPU::cycle() {
         opCount = 1;
         break;
     // Absolute
-    case 0x6D: case 0x2D: case 0x1E: case 0x0E:
+    case 0x6D: case 0x2D: case 0x6F: case 0x0E:
     case 0x2C: case 0xCD: case 0xEC: case 0xCC:
     case 0xCE: case 0x4D: case 0xEE: case 0x4C:
     case 0x20: case 0xAD: case 0xAE: case 0xAC:
@@ -205,7 +205,6 @@ void CPU::cycle() {
     case 0xED: case 0x8D: case 0x8E: case 0x8C:
     case 0x0C: case 0xAF: case 0x8F: case 0xCF:
     case 0xEF: case 0x0F: case 0x2F: case 0x4F:
-    case 0x6F:
         operand = resolveAddress(pc + 1);
         pc += 3;
         // TODO revise fix here
@@ -222,17 +221,16 @@ void CPU::cycle() {
     case 0x9D: case 0x1C: case 0x3C: case 0x5C:
     case 0x7C: case 0xDC: case 0xFC: case 0xDF:
     case 0xFF: case 0x1F: case 0x3F: case 0x5F:
-    case 0x7F:
+    case 0x7F: case 0x5E: case 0x1E:
         operand = resolveAddress(pc + 1) + regX;
         pc += 3;
         opCount = 2;
         break;
     // Absolute, Y
     case 0x79: case 0x39: case 0xD9: case 0x59:
-    case 0xB9: case 0xBE: case 0x5E: case 0x19:
+    case 0xB9: case 0xBE: case 0x7B: case 0x19:
     case 0xF9: case 0x99: case 0xBF: case 0xDB:
     case 0xFB: case 0x1B: case 0x3B: case 0x5B:
-    case 0x7B:
         operand = resolveAddress(pc + 1) + regY;
         pc += 3;
         opCount = 2;
@@ -296,7 +294,11 @@ void CPU::cycle() {
     case 0x03: case 0x23: case 0x43: case 0x63:
     	temp = readMemory(pc + 1);
     	temp = (temp + regX) & 0xFF;
-    	operand = resolveAddress(temp);
+    	if (temp == 0xFF) {
+        	operand = ((uint16_t)readMemory(0x0000) << 8) + readMemory(0x00FF);
+    	} else {
+    		operand = resolveAddress(temp);
+    	}
         pc += 2;
     	opCount = 1;
         break;
@@ -635,8 +637,8 @@ void CPU::cycle() {
 
 void CPU::AAX() {
 	uint8_t temp = accumulator & regX;
-	setZeroFlag(temp);
-	setNegativeFlag(temp);
+//	setZeroFlag(temp);
+//	setNegativeFlag(temp);
 	storeMemory(operand, temp);
 }
 
@@ -914,6 +916,7 @@ void CPU::NOP() {
 }
 
 void CPU::ORA() {
+	//cout <<"TEST1: " << hex << +operand << endl;
 	accumulator |= readMemory(operand);
 	setZeroFlag(accumulator);
 	setNegativeFlag(accumulator);
