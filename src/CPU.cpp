@@ -17,8 +17,8 @@ void CPU::debug() {
 	if (!isDebug) {
 		isDebug = true;
 	}
-	cout << "PC:" << left << setw(4) << hex << +pc <<
-			" A:" << setw(2) << +accumulator <<
+	//cout << "PC:" << left << setw(4) << hex << +pc <<
+	cout <<	"A:" << left << setw(2) << +accumulator <<
 			" X:" << setw(2) << +regX <<
 			" Y:" << setw(2) << +regY <<
 			" SP:" << setw(2) << +sp << dec <<
@@ -30,8 +30,8 @@ void CPU::reset() {
 	//Reset interrupts are triggered when the system first starts and when the user presses the
 	//reset button. When a reset occurs the system jumps to the address located at $FFFC and
 	//$FFFD.
-	//pc = resolveAddress(0xFFFC);
-	pc = 0xC000;
+	pc = resolveAddress(0xFFFC);
+	//pc = 0xC000;
 	//pc = 0x8000;
 	sp = 0xFD;
 	status = 0x24;
@@ -40,11 +40,11 @@ void CPU::reset() {
 	regY = 0;
 	opcode = 0;
 	operand = 0;
-	for (int i = 0; i < 8192; i++) {
+	for (int i = 0; i < 0x1000; i++) {
 		cpuRam[i] = 0;
 	}
 
-	for (int i = 0; i < 8192; i++) {
+	for (int i = 0; i < 0x2000; i++) {
 		sRam[i] = 0;
 	}
 
@@ -106,6 +106,13 @@ uint8_t CPU::readMemory(uint16_t address) {
 		return 1;
 	} else if (address >= 0x2000) {
 		switch (address & 0x007) { // PPU registers mirrored every 8 bytes
+		// case 0 and case 1 are available to read for debugging purposes
+		case 0:
+			return ppu->getppuCtrl();
+			break;
+		case 1:
+			return ppu->getppuMask();
+			break;
 		case 2:
 			return ppu->getppuStatus();
 			break;
@@ -136,7 +143,6 @@ uint8_t CPU::popStack() {
 
 void CPU::NMI() {
 	cout << "Debug: NMI occured" << endl;
-	// push pc and status regs onto stack
 	pushStack(pc >> 8);
 	pushStack(pc);
 	pushStack(status);
@@ -145,6 +151,8 @@ void CPU::NMI() {
 	// load NMI val
 	pc = resolveAddress(0xFFFA);
 	//RTI();
+	ppu->setvBlank(0);
+	//cout << "vBlank: (C) " << ppu->getvBlank() << endl;
 }
 
 void CPU::cycle() {

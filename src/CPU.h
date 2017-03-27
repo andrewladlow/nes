@@ -48,8 +48,8 @@ private:
     char *prgRom;
     int prgRomBanks;
 
-    uint8_t cpuRam[2048];
-    uint8_t sRam[8192];
+    uint8_t cpuRam[0x1000];
+    uint8_t sRam[0x2000];
 
     uint16_t pc;
     uint8_t sp;

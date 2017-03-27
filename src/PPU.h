@@ -23,7 +23,9 @@ public:
     uint8_t readMemory(uint16_t address);
 
     array2d<sf::Color, 256, 240> getpixelBuffer();
+    uint8_t getppuCtrl();
     void setppuCtrl(uint8_t value);
+    uint8_t getppuMask();
     void setppuMask(uint8_t value);
     uint8_t getppuStatus();
     void setppuStatus(uint8_t value);
@@ -35,6 +37,7 @@ public:
     uint8_t getppuData();
     void setppuData(uint8_t value);
     bool getvBlank();
+    bool isNMI();
 
     void renderScanline(int scanline);
 
@@ -50,6 +53,9 @@ public:
 
     void incrementHorizontalScrollCounters();
     void initPalette();
+
+    void setppuStatus(int bit, bool val);
+    void setvBlank(bool val);
 private:
     int currentCycle;
     int currentScanline;
@@ -58,8 +64,8 @@ private:
     array<sf::Color, 64> palette;
     array2d<sf::Color, 256, 240> pixelBuffer;
 
-    char vRam[4096];
-    char sprRam[256];
+    char vRam[0x4000];
+    char sprRam[0x100];
 
     uint8_t vRamBuffer;
 
@@ -84,6 +90,7 @@ private:
     bool vramInc32;
     bool sprTable;
     bool sprSize;
+    bool generateNMI;
 
 	bool greyscale;
 	bool showBGLeft;

@@ -22,21 +22,22 @@ PPU::PPU() {
     vramInc32 = false;
     sprTable = false;
     sprSize = false;
+    generateNMI = false;
 
     sprOverflow = false;
     spr0Hit = false;
 
     written = false;
 
-    currentScanline = 260;
+    currentScanline = 0;
     currentCycle = 0;
     currentScanlineCycle = 0;
 
-	for (int i = 0; i < 4096; i++) {
+	for (int i = 0; i < 0x4000; i++) {
 		vRam[i] = 0;
 	}
 
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 0x100; i++) {
 		sprRam[i] = 0;
 	}
 
@@ -61,34 +62,28 @@ uint8_t PPU::readMemory(uint16_t address) {
 	if (address >= 0x4000) {
 		// locations 4000 - 10000 are mirrors of 0000 - 3fff
 		address &= 0x3FFF;
-	}
-
-	if (address >= 0x3F20) {
+	} else if (address >= 0x3F20) {
 		// locations 3f20 - 4000 are mirrors of 3f00 - 3f1f
 		address &= 0x3F1F;
-	}
-
-	if (address >= 0x3F00) {
+	} else if (address >= 0x3F00) {
 		// every 4th location is a mirror of 3f00
 		if (!(address & 0x03)) {
 			address &= 0x3F00;
 		}
-	}
-
-	if (address >= 0x3000) {
+	} else if (address >= 0x3000) {
 		address &= 0x2EFF;
-	}
-
-	if (address >= 0x2000) {
+	} else if (address >= 0x2000) {
 		// use vertical mirroring for initial testing (mario)
 		address &= 0x27FF;
+		// horizontal
+		//address &= 0x23FF;
 	}
 
 	return vRam[address];
 }
 
 void PPU::cycle() {
-	//cout << currentScanline << endl;
+	cout << "Scanline: " << dec << currentScanline << endl;
 	//if (vBlank)
 	//cout << vBlank << endl;
 	if (currentScanline == 0) {
@@ -100,10 +95,10 @@ void PPU::cycle() {
 	} else if (currentScanline == 20) {
 		// TODO increment scroll counters during render
 		updateScrollCounters();
-	} else if (currentScanline <= 260) {
+	} else if (currentScanline >= 21 && currentScanline <= 260) {
 		// one of the two must be active to enable PPU rendering
-		if (showBG || showSpr) {
-
+		//if (showBG || showSpr) {
+			cout << "debug: render" << endl;
 			// TODO consider custom screen width
 			if (currentScanlineCycle >= 0 && currentScanlineCycle < 256) {
 
@@ -114,10 +109,12 @@ void PPU::cycle() {
 				// TODO screen width
 				while (pixelX < 256) {
 					uint16_t vRamAddr = getVramAddr();
-					//cout << "vram: " << hex << +vRamAddr << endl;
+					cout << "vram: " << hex << +vRamAddr << endl;
 
 					uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
+					cout << "name table addr: " << hex << +nameTableAddr << endl;
 					uint8_t tile = readMemory(nameTableAddr);
+					cout << "tile: " << hex << +tile << endl;
 
 					uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
 
@@ -160,7 +157,7 @@ void PPU::cycle() {
 					}
 				}
 			}
-		}
+		//}
 
 		// after a scanline is rendered, reset X scroll, inc Y
 		// H and HT are updated at hblank whilst rendering is active
@@ -170,7 +167,9 @@ void PPU::cycle() {
 
 		incrementVerticalScrollCounters();
 	} else {
-		vBlank = 1;
+		//cout << "PPU:261" << endl;
+		//cout << "generateNMI: " << generateNMI << endl;
+		//vBlank = 1;
 	}
 
 	currentCycle++;
@@ -185,6 +184,8 @@ void PPU::cycle() {
 		if (currentScanline % 262 == 0) {
 			currentCycle = 0;
 			currentScanline = 0;
+
+			vBlank = 1;
 		}
 	}
 }
@@ -217,8 +218,22 @@ void PPU::incrementHorizontalScrollCounters() {
 	}
 }
 
-bool PPU::getvBlank() {
-	return vBlank;
+bool PPU::isNMI() {
+	//cout << "vBlank: (P) " << vBlank << endl;
+	//cout << "generateNMI: " << generateNMI << endl;
+	return (vBlank && generateNMI);
+}
+
+uint8_t PPU::getppuCtrl() { // 2000
+	uint8_t temp = 0;
+	temp |= regH;
+	temp |= regV << 1;
+	temp |= vramInc32 << 2;
+	temp |= sprTable << 3;
+	temp |= regS << 4;
+	temp |= sprSize << 5;
+	temp |= generateNMI << 7;
+	return temp;
 }
 
 void PPU::setppuCtrl(uint8_t value) { // 2000
@@ -229,7 +244,20 @@ void PPU::setppuCtrl(uint8_t value) { // 2000
 	sprTable = value & 0x08;
 	regS = value & 0x10;
 	sprSize = value & 0x20;
-	vBlank = value & 0x80;
+	generateNMI = value & 0x80;
+}
+
+uint8_t PPU::getppuMask() { // 2001
+	uint8_t temp = 0;
+	temp |= greyscale;
+	temp |= showBGLeft << 1;
+	temp |= showSprLeft << 2;
+	temp |= showBG << 3;
+	temp |= showSpr << 4;
+	temp |= emphR << 5;
+	temp |= emphG << 6;
+	temp |= emphB << 7;
+	return temp;
 }
 
 void PPU::setppuMask(uint8_t value) { // 2001
@@ -246,15 +274,20 @@ void PPU::setppuMask(uint8_t value) { // 2001
 
 uint8_t PPU::getppuStatus() { // 2002
 	// TODO not concerned with lower 5 bits here?
-	ppuStatus &= sprOverflow << 5;
-	ppuStatus &= spr0Hit << 6;
-	ppuStatus &= vBlank << 7;
+	ppuStatus = 0;
+	ppuStatus |= sprOverflow << 5;
+	ppuStatus |= spr0Hit << 6;
+	ppuStatus |= vBlank << 7;
+//	setppuStatus(5, sprOverflow);
+//	setppuStatus(6, spr0Hit);
+//	setppuStatus(7, vBlank);
+
+	//cout << "PPU Status: " << hex << +ppuStatus << endl;
 
 	vBlank = 0;
 	written = false; // reset PPUSCROLL / PPUADDR latch
 	return ppuStatus;
 }
-
 
 void PPU::setoamAddr(uint8_t value) { // 2003
 	oamAddr = value;
@@ -290,8 +323,10 @@ void PPU::setppuAddr(uint8_t value) { // 2006
 
 	if (!written) {
 		regFV = value & 0x30;
+		cout << "fv: " << hex << +regFV << endl;
 		//regFV &= 0xBF; not required?
 		regV = value & 0x08;
+		cout << "v: " << hex << +regV << endl;
 		regH = value & 0x04;
 		regVT = value & 0x03;
 	} else {
@@ -339,11 +374,11 @@ void PPU::updateScrollCounters() {
 // Retrieve vram address from daisy-chained counters
 uint16_t PPU::getVramAddr() {
 	uint16_t result = 0;
-	result = cntHT;
-	result &= cntVT << 5;
-	result &= cntH << 10;
-	result &= cntV << 11;
-	result &= cntFV << 12;
+	result |= (uint16_t) cntHT;
+	result |= ((uint16_t) cntVT) << 5;
+	result |= ((uint16_t) cntH) << 10;
+	result |= ((uint16_t) cntV) << 11;
+	result |= ((uint16_t) cntFV) << 12;
 	return result;
 }
 
@@ -388,4 +423,16 @@ void PPU::initPalette() {
 		{252,252,252},{164,228,252},{184,184,248},{216,184,248},{248,184,248},{248,164,192},{240,208,176},{252,224,168},
 		{248,216,120},{216,248,120},{184,248,184},{184,248,216},{0,252,252},{248,216,248},{0,0,0},{0,0,0}
 	}};
+}
+
+void PPU::setppuStatus(int bit, bool val) {
+	ppuStatus ^= (-val ^ ppuStatus) & (1 << bit);
+}
+
+bool PPU::getvBlank() {
+	return vBlank;
+}
+
+void PPU::setvBlank(bool val) {
+	vBlank = val;
 }
