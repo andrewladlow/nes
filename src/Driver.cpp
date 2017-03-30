@@ -8,29 +8,29 @@
 
 void emulate(CPU cpu, PPU *ppu) {
 	while (true) {
-		cpu.cycle();
 
-		ppu->cycle();
-		if (ppu->isNMI()) {
-			cpu.NMI();
-		}
-		ppu->cycle();
-		if (ppu->isNMI()) {
-			cpu.NMI();
-		}
-		ppu->cycle();
-		if (ppu->isNMI()) {
-			cpu.NMI();
-		}
+	    for (int scanline = 0; scanline < 262; scanline++) {
+	        int i = 0;
+	        for (int i = 0; i < 113; i++) {
+	        	cpu.cycle();
+	        	i++;
+	        }
+
+	        ppu->cycle(scanline);
+	        if (ppu->isNMI()) {
+	        	cpu.NMI();
+	        }
+
+	    }
 	}
 }
 
 int main(int argc, char * argv[]) {
-    std::string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/mario.nes";
+    std::string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/donkeykong.nes";
     Cartridge cartridge(filePath);
-    //cartridge.debug();
+    cartridge.debug();
 
-    PPU *ppu = new PPU();
+    PPU *ppu = new PPU(cartridge.getchrRom());
     CPU cpu(ppu, cartridge.getprgRom(), cartridge.getprgRomBanks());
 
  	cpu.setDebug(1);
@@ -61,17 +61,18 @@ int main(int argc, char * argv[]) {
 
 			window->clear(sf::Color::Black);
 
-			array2d<sf::Color, 256, 240> pixelBuffer = ppu->getpixelBuffer();
+			array2d<colour, 256, 240> pixelBuffer = ppu->getpixelBuffer();
 
 			int counter = 0;
 
 		    for (unsigned int y = 0; y < 240; ++y) {
 		      for (unsigned int x = 0; x < 256; ++x) {
-		        sf::Color color = pixelBuffer[x][y];
-		        pixels[counter * 4] = color.r;
-		        pixels[4 * counter + 1] = color.g;
-		        pixels[4 * counter + 2] = color.b;
-		        pixels[4 * counter + 3] = color.a;
+		        colour colour = pixelBuffer[x][y];
+		        //cout << "color.r: " << dec << +color.r << endl;
+		        pixels[4 * counter] = colour.r;
+		        pixels[4 * counter + 1] = colour.g;
+		        pixels[4 * counter + 2] = colour.b;
+		        pixels[4 * counter + 3] = 255;
 		        counter++;
 		        //cout << +pixels[4*pos] << endl;
 		      }

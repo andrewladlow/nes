@@ -1,6 +1,6 @@
+
 #ifndef PPU_H_
 #define PPU_H_
-
 #include <iostream>
 #include <array>
 #include <SFML/Graphics/Color.hpp>
@@ -9,20 +9,20 @@ using namespace std;
 
 template <typename T, size_t M, size_t N> using array2d = array<array<T, N>, M>;
 
-struct colour {
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
+typedef struct colour {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
 };
+
+
 
 class PPU {
 public:
-    PPU();
+    PPU(char *chrRom);
     ~PPU();
 
-    uint8_t readMemory(uint16_t address);
-
-    array2d<sf::Color, 256, 240> getpixelBuffer();
+    array2d<colour, 256, 240> getpixelBuffer();
     uint8_t getppuCtrl();
     void setppuCtrl(uint8_t value);
     uint8_t getppuMask();
@@ -44,10 +44,10 @@ public:
     void updateScrollCounters();
 
     uint16_t getVramAddr();
-    void incVramAddr(uint16_t value);
+    void incVramAddr();
     void updateVramAddr(uint16_t value);
 
-    void cycle();
+    void cycle(int scanline);
 
     void incrementVerticalScrollCounters();
 
@@ -56,16 +56,19 @@ public:
 
     void setppuStatus(int bit, bool val);
     void setvBlank(bool val);
-private:
-    int currentCycle;
-    int currentScanline;
-    int currentScanlineCycle;
 
-    array<sf::Color, 64> palette;
-    array2d<sf::Color, 256, 240> pixelBuffer;
+    uint8_t readMemory(uint16_t address);
+    void storeMemory(uint16_t address, uint8_t word);
+    uint16_t resolveAddress(uint16_t address);
+
+private:
+
+    array<colour, 64> palette;
+    array2d<colour, 256, 240> pixelBuffer;
 
     char vRam[0x4000];
     char sprRam[0x100];
+    char *chrRom;
 
     uint8_t vRamBuffer;
 

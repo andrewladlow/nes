@@ -120,7 +120,7 @@ uint8_t CPU::readMemory(uint16_t address) {
 			return ppu->getoamData();
 			break;
 		case 7:
-			return ppu->getVramAddr();
+			return ppu->getppuData();
 			break;
 		}
 	} else {
@@ -142,6 +142,7 @@ uint8_t CPU::popStack() {
 }
 
 void CPU::NMI() {
+	//ppu->setvBlank(0);
 	cout << "Debug: NMI occured" << endl;
 	pushStack(pc >> 8);
 	pushStack(pc);
@@ -151,7 +152,6 @@ void CPU::NMI() {
 	// load NMI val
 	pc = resolveAddress(0xFFFA);
 	//RTI();
-	ppu->setvBlank(0);
 	//cout << "vBlank: (C) " << ppu->getvBlank() << endl;
 }
 
@@ -635,9 +635,11 @@ void CPU::cycle() {
 		} else if (opCount == 3) {
 			cout << hex << operand;
 		} else if (opCount == 2) {
-			cout << hex << operand << " = " << +readMemory(operand);
+			//cout << hex << operand << " = " << +readMemory(operand);
+			cout << hex << operand;
 		} else if (opCount == 1) {
-			cout << hex << +readMemory(operand);
+			//cout << hex << +readMemory(operand);
+			cout << hex << operand;
 		}
 		cout << endl;
     }
