@@ -15,6 +15,7 @@ public:
     int getprgRomBanks();
     char *getchrRom();
     char *getram();
+    uint8_t getromControlByte1();
 private:
     char header[16];
 
@@ -25,6 +26,8 @@ private:
     int prgRomSize;
     int chrRomSize;
     int ramSize;
+
+    uint8_t romControlByte1;
 };
 
 #endif

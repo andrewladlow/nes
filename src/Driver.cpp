@@ -26,25 +26,21 @@ void emulate(CPU cpu, PPU *ppu) {
 }
 
 int main(int argc, char * argv[]) {
-    std::string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/donkeykong.nes";
+    std::string filePath = "C:/Users/Orcworm/Documents/GitHub/nes/roms/mario.nes";
     Cartridge cartridge(filePath);
     cartridge.debug();
 
-    PPU *ppu = new PPU(cartridge.getchrRom());
+    PPU *ppu = new PPU(cartridge.getchrRom(), cartridge.getromControlByte1());
     CPU cpu(ppu, cartridge.getprgRom(), cartridge.getprgRomBanks());
 
  	cpu.setDebug(1);
-
-
 
     sf::RenderWindow *window = new sf::RenderWindow(sf::VideoMode(256, 240), "NES Emulator");
     sf::Texture texture;
     texture.create(256, 240);
     sf::Sprite sprite(texture);
 
-    std::uint8_t *pixels = new std::uint8_t[256 * 240 * 4];
-
- 	//window->setFramerateLimit(60);
+    std::uint8_t *pixels = new std::uint8_t[4 * 256 * 240];
 
  	std::thread emulateThread(emulate, cpu, ppu);
  	emulateThread.detach();
@@ -65,8 +61,8 @@ int main(int argc, char * argv[]) {
 
 			int counter = 0;
 
-		    for (unsigned int y = 0; y < 240; ++y) {
-		      for (unsigned int x = 0; x < 256; ++x) {
+		    for (unsigned int y = 0; y < 240; y++) {
+		      for (unsigned int x = 0; x < 256; x++) {
 		        colour colour = pixelBuffer[x][y];
 		        //cout << "color.r: " << dec << +color.r << endl;
 		        pixels[4 * counter] = colour.r;

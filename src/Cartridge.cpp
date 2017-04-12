@@ -14,6 +14,9 @@ Cartridge::Cartridge(string filePath) {
             cout << "Invalid ROM loaded" << endl;
             file.close();
         } else {
+        	// store rom control byte 1 to handle ppu mirroring
+        	romControlByte1 = header[8];
+
             if (header[6] & 0x4) { // check trainer presence
                 cout << "trainer present" << endl;
             }
@@ -54,6 +57,10 @@ char *Cartridge::getchrRom() {
 
 char *Cartridge::getram() {
     return ram;
+}
+
+uint8_t Cartridge::getromControlByte1() {
+	return romControlByte1;
 }
 
 void Cartridge::debug() {

@@ -1,4 +1,3 @@
-
 #ifndef PPU_H_
 #define PPU_H_
 #include <iostream>
@@ -9,17 +8,15 @@ using namespace std;
 
 template <typename T, size_t M, size_t N> using array2d = array<array<T, N>, M>;
 
-typedef struct colour {
+struct colour {
     uint8_t r;
     uint8_t g;
     uint8_t b;
 };
 
-
-
 class PPU {
 public:
-    PPU(char *chrRom);
+    PPU(char *chrRom, uint8_t romControlByte1);
     ~PPU();
 
     array2d<colour, 256, 240> getpixelBuffer();
@@ -62,13 +59,14 @@ public:
     uint16_t resolveAddress(uint16_t address);
 
 private:
-
     array<colour, 64> palette;
     array2d<colour, 256, 240> pixelBuffer;
 
     char vRam[0x4000];
     char sprRam[0x100];
     char *chrRom;
+
+    uint8_t romControlByte1;
 
     uint8_t vRamBuffer;
 

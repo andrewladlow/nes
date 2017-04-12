@@ -2,9 +2,9 @@
 
 using namespace std;
 
-PPU::PPU(char *chrRom) {
+PPU::PPU(char *chrRom, uint8_t romControlByte1) {
 	this->chrRom = chrRom;
-    //cout << "New PPU created" << endl;
+	this->romControlByte1 = romControlByte1;
 
     oamAddr = 0;
     oamData = 0;
@@ -61,11 +61,14 @@ uint16_t PPU::resolveAddress(uint16_t address) {
 
     if (address < 0x2000) {
         return address;
-    } else if (address < 0x3000) {
-        return address & 0x23FF;
     } else if (address < 0x3F00) {
-        // mirror of above
-        return address & 0x23FF;
+    	// vertical mirroring
+    	if (romControlByte1) {
+    		return address & 0x27FF;
+		// horizontal mirroring
+    	} else {
+    		return address & 0x23FF;
+    	}
     } else {
     	// locations 3f20 - 4000 are mirrors of 3f00 - 3f1f
         address &= 0x3F1F;
@@ -97,16 +100,18 @@ void PPU::cycle(int currentScanline) {
 			int pixelX = 0;
 			int pixelY = currentScanline;
 			while (pixelX < 256) {
-				uint16_t nameTableAddr = 0x2000 | (getVramAddr() & 0x0FFF);
+				uint16_t vRamAddr = getVramAddr();
+				uint16_t nameTableAddr = 0x2000 | (vRamAddr & 0x0FFF);
 				uint8_t tile = readMemory(nameTableAddr);
-				uint16_t attributeTableAddr = 0x23C0 | (getVramAddr() & 0x0C00) | ((getVramAddr() >> 4) & 0x38) | ((getVramAddr() >> 2) & 0x07);
+				uint16_t attributeTableAddr = 0x23C0 | (vRamAddr & 0x0C00) | ((vRamAddr >> 4) & 0x38) | ((vRamAddr >> 2) & 0x07);
 
 				uint8_t attributeTableByte = readMemory(attributeTableAddr);
-				uint8_t quadrant = (cntVT & 0x02) << 1 | (cntHT & 0x02);
+				// http://forums.nesdev.com/viewtopic.php?f=3&t=14795&start=15
+				uint8_t quadrant = ((cntVT & 0x02) << 1) | (cntHT & 0x02);
 				uint8_t upperPixelIndex = (attributeTableByte >> quadrant) & 0x03;
 
 				uint16_t patternTableAddr = (uint16_t) regS << 12;
-				patternTableAddr |= (uint16_t)tile << 4;
+				patternTableAddr |= (uint16_t) tile << 4;
 				patternTableAddr |= cntFV;
 
 				uint8_t lowerPatternByte = readMemory(patternTableAddr);
@@ -116,7 +121,7 @@ void PPU::cycle(int currentScanline) {
 				int patternBit = 7 - x;
 
 				uint8_t lowerPatternBit = (lowerPatternByte >> patternBit) & 1;
-				uint8_t upperPatternBit = ((upperPatternByte >> patternBit) & 1);
+				uint8_t upperPatternBit = (upperPatternByte >> patternBit) & 1;
 
 				uint16_t paletteIndex = 0x3F00;
 
@@ -125,24 +130,26 @@ void PPU::cycle(int currentScanline) {
 				uint8_t pixelIndex = lowerPixelIndex | (upperPixelIndex << 2);;
 				paletteIndex += pixelIndex;
 
-				pixelBuffer[pixelX][pixelY] = palette[readMemory(paletteIndex)];
+				pixelBuffer[pixelX][pixelY+21] = palette[readMemory(paletteIndex)];
 
 				// check for new tile
 				// "The HT counter is then clocked every 8 pixel dot clocks"
+				// http://hackipedia.org/Platform/Nintendo/NES/text/2C02%20technical%20reference.cp437.txt.utf-8.txt
 				pixelX++;
 				if ((pixelX + regFH) % 8 == 0) {
 					incrementHorizontalScrollCounters();
 				}
 			}
+			//incVramAddr();
+
+			// after a scanline is rendered, reset X scroll, inc Y
+			// H and HT are updated at hblank whilst rendering is active
+			// reload loopyT into loopyV
+			incrementVerticalScrollCounters();
+			//updateScrollCounters();
+			cntH = regH;
+			cntHT = regHT;
 		}
-
-		incrementVerticalScrollCounters();
-
-		// after a scanline is rendered, reset X scroll, inc Y
-		// H and HT are updated at hblank whilst rendering is active
-		// reload loopyT into loopyV
-		cntH = regH;
-		cntHT = regHT;
 
 	} else if (currentScanline == 261) {
 		vBlank = 1;
